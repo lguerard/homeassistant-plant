@@ -127,7 +127,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(
                 ATTR_NOTIFY_SERVICE,
                 default=self.plant_info.get(ATTR_NOTIFY_SERVICE, ""),
-            ): selector({"service": {"domain": "notify"}}),
+            ): cv.string,
         }
 
         data_schema[FLOW_SENSOR_TEMPERATURE] = selector(
