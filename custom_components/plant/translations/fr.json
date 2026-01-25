@@ -77,4 +77,16 @@
       }
     }
   }
+  ,
+  "card": {
+    "search_placeholder": "Filtrer les plantes par nom ou pièce…",
+    "sort_watering": "Temps avant arrosage",
+    "sort_name": "Nom",
+    "sort_nickname": "Surnom",
+    "time_until_watering": "Heures avant arrosage :",
+    "no_watering_text": "Aucun capteur d'arrosage lié",
+    "done": "Terminé",
+    "snooze_1h": "Reporter 1h",
+    "confirm_mark_done": "Marquer {name} comme arrosée ?"
+  }
 }
