@@ -2,11 +2,10 @@
   plant-dashboard-card.js
   Lightweight Plant Dashboard card with live updates, search, sort, and inline actions.
 */
-
-class PlantDashboardCard extends HTMLElement {
-  setConfig(config) {
-    this.config = config || {};
-    if (!this.config.show_all && !this.config.entities) {
+    [
+      ["watering", _localize('sort_watering') || 'Time until watering'],
+      ["name", _localize('sort_name') || 'Name'],
+    ].forEach(([val, label]) => {
       throw new Error("You must define `entities` or set `show_all: true`.");
     }
     this._sortBy = this.config.sort_by || "watering";
@@ -123,7 +122,6 @@ class PlantDashboardCard extends HTMLElement {
     [
       ["watering", _localize("sort_watering") || "Time until watering"],
       ["name", _localize("sort_name") || "Name"],
-      ["nickname", _localize("sort_nickname") || "Nickname"],
     ].forEach(([val, label]) => {
       const o = document.createElement("option");
       o.value = val;
@@ -179,11 +177,8 @@ class PlantDashboardCard extends HTMLElement {
     // filter
     const filtered = rows.filter((r) => {
       if (!this._query) return true;
-      const name = (
-        r.plantState.attributes.friendly_name || r.plantState.entity_id
-      ).toLowerCase();
-      const nick = (r.plantState.attributes.nickname || "").toLowerCase();
-      return name.includes(this._query) || nick.includes(this._query);
+      const name = (r.plantState.attributes.friendly_name || r.plantState.entity_id).toLowerCase();
+      return name.includes(this._query);
     });
 
     // sort
@@ -194,10 +189,7 @@ class PlantDashboardCard extends HTMLElement {
         ).localeCompare(
           b.plantState.attributes.friendly_name || b.plantState.entity_id,
         );
-      if (this._sortBy === "nickname")
-        return (a.plantState.attributes.nickname || "").localeCompare(
-          b.plantState.attributes.nickname || "",
-        );
+      // nickname sort removed; unsupported
       // default: watering (nulls last)
       const av = a.wateringNum;
       const bv = b.wateringNum;
@@ -234,12 +226,7 @@ class PlantDashboardCard extends HTMLElement {
         name.textContent =
           plantState.attributes.friendly_name || plantState.entity_id;
         meta.appendChild(name);
-        if (plantState.attributes.nickname) {
-          const nick = document.createElement("div");
-          nick.className = "nick";
-          nick.textContent = plantState.attributes.nickname;
-          meta.appendChild(nick);
-        }
+        // nickname removed: do not render separate nickname field
         const stateDiv = document.createElement("div");
         stateDiv.className = "state";
         if (wateringEntity && this._hass.states[wateringEntity]) {

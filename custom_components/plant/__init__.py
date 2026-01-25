@@ -47,7 +47,6 @@ from .const import (
     ATTR_METERS,
     ATTR_MIN,
     ATTR_MOISTURE,
-    ATTR_NICKNAME,
     ATTR_NOTIFY_SERVICE,
     ATTR_PLANT,
     ATTR_SENSOR,
@@ -417,10 +416,7 @@ class PlantDevice(Entity):
         self.species = self._config.options.get(
             ATTR_SPECIES, self._config.data[FLOW_PLANT_INFO].get(ATTR_SPECIES)
         )
-        # Optional nickname
-        self.nickname = self._config.options.get(
-            ATTR_NICKNAME, self._config.data[FLOW_PLANT_INFO].get(ATTR_NICKNAME, "")
-        )
+        # nickname support removed; use `name` instead
         # Optional preferred notify service (entity id)
         self.notify_service = self._config.options.get(
             ATTR_NOTIFY_SERVICE,
@@ -538,7 +534,6 @@ class PlantDevice(Entity):
             return {}
         attributes = {
             ATTR_SPECIES: self.display_species,
-            ATTR_NICKNAME: self.nickname,
             f"{ATTR_MOISTURE}_status": self.moisture_status,
             f"{ATTR_TEMPERATURE}_status": self.temperature_status,
             f"{ATTR_CONDUCTIVITY}_status": self.conductivity_status,
@@ -606,8 +601,7 @@ class PlantDevice(Entity):
                 ATTR_SENSOR: self.dli.entity_id,
             },
         }
-        # add optional nickname
-        response["nickname"] = self.nickname
+        # nickname removed
         if self.dli.state and self.dli.state != STATE_UNKNOWN:
             response[ATTR_DLI][ATTR_CURRENT] = float(self.dli.state)
         # include watering sensor entity if available

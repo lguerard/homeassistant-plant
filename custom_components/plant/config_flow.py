@@ -24,7 +24,6 @@ from homeassistant.helpers.selector import selector
 from .const import (
     ATTR_ENTITY,
     ATTR_LIMITS,
-    ATTR_NICKNAME,
     ATTR_NOTIFY_SERVICE,
     ATTR_OPTIONS,
     ATTR_SEARCH_FOR,
