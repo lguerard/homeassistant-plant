@@ -136,6 +136,17 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         data_schema[ATTR_NOTIFY_SERVICE] = selector({ATTR_SELECT: {ATTR_OPTIONS: notify_options}})
 
+        # Optional: mark this plant as outside (affects watering logic)
+        data_schema[vol.Optional("outside", default=self.plant_info.get("outside", False))] = cv.boolean
+
+        # Simplified dropdown for weather entity (values are entity ids like 'weather.home')
+        weather_states = [s for s in self.hass.states.async_all() if s.entity_id.startswith("weather.")]
+        weather_options = [{"label": "Default (weather.home)", "value": ""}]
+        for st in sorted(weather_states, key=lambda s: s.entity_id):
+            label = st.attributes.get("friendly_name") or st.entity_id
+            weather_options.append({"label": label, "value": st.entity_id})
+        data_schema["weather_entity"] = selector({ATTR_SELECT: {ATTR_OPTIONS: weather_options}})
+
         data_schema[FLOW_SENSOR_TEMPERATURE] = selector(
             {
                 ATTR_ENTITY: {
