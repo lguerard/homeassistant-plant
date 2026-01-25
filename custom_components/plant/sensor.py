@@ -159,6 +159,8 @@ class PlantCurrentStatus(RestoreSensor):
         self._plant = plantdevice
         self._tracker = []
         self._follow_external = True
+        # Ensure attribute exists for subclasses that don't define it in __init__
+        self._external_sensor = None
         # self._conf_check_days = self._plant.check_days
         self.entity_id = async_generate_entity_id(
             f"{DOMAIN}.{{}}", self.name, current_ids={}
