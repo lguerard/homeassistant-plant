@@ -31,6 +31,8 @@ ATTR_PLANT = "plant"
 ATTR_SPECIES = "species"
 ATTR_IMAGE = "image"
 ATTR_SEARCH_FOR = "search_for"
+ATTR_NICKNAME = "nickname"
+ATTR_NOTIFY_SERVICE = "notify_service"
 
 # Readings are used by humans
 READING_BATTERY = "battery"

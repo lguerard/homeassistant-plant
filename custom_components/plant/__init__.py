@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-from . import group
-
 import logging
 
 import voluptuous as vol
-
 from homeassistant.components import websocket_api
 from homeassistant.components.utility_meter.const import (
     DATA_TARIFF_SENSORS,
@@ -15,7 +12,6 @@ from homeassistant.components.utility_meter.const import (
 )
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import (
-    Platform,
     ATTR_ENTITY_PICTURE,
     ATTR_ICON,
     ATTR_NAME,
@@ -24,16 +20,22 @@ from homeassistant.const import (
     STATE_PROBLEM,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
+    Platform,
 )
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import (
     config_validation as cv,
+)
+from homeassistant.helpers import (
     device_registry as dr,
+)
+from homeassistant.helpers import (
     entity_registry as er,
 )
 from homeassistant.helpers.entity import Entity, async_generate_entity_id
 from homeassistant.helpers.entity_component import EntityComponent
 
+from . import group
 from .const import (
     ATTR_CONDUCTIVITY,
     ATTR_CURRENT,
@@ -45,6 +47,8 @@ from .const import (
     ATTR_METERS,
     ATTR_MIN,
     ATTR_MOISTURE,
+    ATTR_NICKNAME,
+    ATTR_NOTIFY_SERVICE,
     ATTR_PLANT,
     ATTR_SENSOR,
     ATTR_SENSORS,
@@ -225,6 +229,82 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
         return
 
     hass.services.async_register(DOMAIN, SERVICE_REPLACE_SENSOR, replace_sensor)
+
+    async def mark_watered(call: ServiceCall) -> None:
+        """Mark one or all plants as watered now.
+
+        Service data: `entity_id` (optional) - the plant entity id (e.g., plant.kitchen)
+        If omitted, all plants will be marked watered.
+        """
+        target_entity = call.data.get("entity_id")
+        for key in hass.data[DOMAIN]:
+            if not ATTR_PLANT in hass.data[DOMAIN][key]:
+                continue
+            plant_entity = hass.data[DOMAIN][key][ATTR_PLANT]
+            if target_entity and plant_entity.entity_id != target_entity:
+                continue
+            watering = hass.data[DOMAIN][key].get("watering")
+            if watering:
+                try:
+                    watering.mark_watered()
+                except Exception as exc:
+                    _LOGGER.error(
+                        "Failed to mark watered for %s: %s", plant_entity.entity_id, exc
+                    )
+        return
+
+    hass.services.async_register(DOMAIN, "mark_watered", mark_watered)
+
+    async def snooze(call: ServiceCall) -> None:
+        """Snooze one or all plants by 1 hour (service data: `entity_id` optional, `hours` optional).
+
+        Example: `service: plant.snooze` with `entity_id: plant.kitchen`, `hours: 1`
+        """
+        target_entity = call.data.get("entity_id")
+        hours = float(call.data.get("hours", 1.0))
+        for key in hass.data[DOMAIN]:
+            if not ATTR_PLANT in hass.data[DOMAIN][key]:
+                continue
+            plant_entity = hass.data[DOMAIN][key][ATTR_PLANT]
+            if target_entity and plant_entity.entity_id != target_entity:
+                continue
+            watering = hass.data[DOMAIN][key].get("watering")
+            if watering:
+                try:
+                    watering.snooze(hours)
+                except Exception as exc:
+                    _LOGGER.error(
+                        "Failed to snooze for %s: %s", plant_entity.entity_id, exc
+                    )
+        return
+
+    hass.services.async_register(DOMAIN, "snooze", snooze)
+
+    # Listen for notification action events (mobile_app is most common)
+    def _notification_action_event(event):
+        try:
+            action = event.data.get("action")
+            data = event.data.get("data") or {}
+            entity_id = data.get("entity_id") or event.data.get("notification_id")
+            if not entity_id:
+                return
+            if action == "plant_snooze":
+                hass.async_create_task(
+                    hass.services.async_call(
+                        DOMAIN, "snooze", {"entity_id": entity_id, "hours": 1.0}
+                    )
+                )
+            elif action == "plant_done":
+                hass.async_create_task(
+                    hass.services.async_call(
+                        DOMAIN, "mark_watered", {"entity_id": entity_id}
+                    )
+                )
+        except Exception:
+            _LOGGER.exception("Error handling notification action event")
+
+    hass.bus.async_listen("mobile_app_notification_action", _notification_action_event)
+    hass.bus.async_listen("ios.notification_action_fired", _notification_action_event)
     websocket_api.async_register_command(hass, ws_get_info)
     plant.async_schedule_update_ha_state(True)
 
@@ -336,6 +416,15 @@ class PlantDevice(Entity):
         # Get species from options or from initial config
         self.species = self._config.options.get(
             ATTR_SPECIES, self._config.data[FLOW_PLANT_INFO].get(ATTR_SPECIES)
+        )
+        # Optional nickname
+        self.nickname = self._config.options.get(
+            ATTR_NICKNAME, self._config.data[FLOW_PLANT_INFO].get(ATTR_NICKNAME, "")
+        )
+        # Optional preferred notify service (entity id)
+        self.notify_service = self._config.options.get(
+            ATTR_NOTIFY_SERVICE,
+            self._config.data[FLOW_PLANT_INFO].get(ATTR_NOTIFY_SERVICE),
         )
         # Get display_species from options or from initial config
         self.display_species = (
@@ -449,6 +538,7 @@ class PlantDevice(Entity):
             return {}
         attributes = {
             ATTR_SPECIES: self.display_species,
+            ATTR_NICKNAME: self.nickname,
             f"{ATTR_MOISTURE}_status": self.moisture_status,
             f"{ATTR_TEMPERATURE}_status": self.temperature_status,
             f"{ATTR_CONDUCTIVITY}_status": self.conductivity_status,
@@ -516,8 +606,23 @@ class PlantDevice(Entity):
                 ATTR_SENSOR: self.dli.entity_id,
             },
         }
+        # add optional nickname
+        response["nickname"] = self.nickname
         if self.dli.state and self.dli.state != STATE_UNKNOWN:
             response[ATTR_DLI][ATTR_CURRENT] = float(self.dli.state)
+        # include watering sensor entity if available
+        try:
+            watering_entity = None
+            if (
+                self._config.entry_id in self._hass.data.get(DOMAIN, {})
+                and "watering" in self._hass.data[DOMAIN][self._config.entry_id]
+            ):
+                w = self._hass.data[DOMAIN][self._config.entry_id].get("watering")
+                if w:
+                    watering_entity = getattr(w, "entity_id", None)
+            response["watering_sensor"] = watering_entity
+        except Exception:
+            response["watering_sensor"] = None
 
         return response
 
