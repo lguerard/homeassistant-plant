@@ -21,6 +21,9 @@
       "select_species": {
         "title": "Select species from OpenPlantbook",
         "description": "{desc}",
+        "errors": {
+          "base": "An error occurred while contacting OpenPlantbook. Please try again later."
+        },
         "data": {
           "species": "Species"
         },
