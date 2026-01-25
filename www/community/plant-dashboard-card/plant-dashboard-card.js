@@ -189,7 +189,7 @@
         ).localeCompare(
           b.plantState.attributes.friendly_name || b.plantState.entity_id,
         );
-      // nickname sort removed; unsupported
+      // nickname sorting removed
       // default: watering (nulls last)
       const av = a.wateringNum;
       const bv = b.wateringNum;

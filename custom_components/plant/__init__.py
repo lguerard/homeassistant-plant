@@ -416,7 +416,7 @@ class PlantDevice(Entity):
         self.species = self._config.options.get(
             ATTR_SPECIES, self._config.data[FLOW_PLANT_INFO].get(ATTR_SPECIES)
         )
-        # nickname support removed; use `name` instead
+        # nickname support removed
         # Optional preferred notify service (entity id)
         self.notify_service = self._config.options.get(
             ATTR_NOTIFY_SERVICE,
@@ -601,7 +601,7 @@ class PlantDevice(Entity):
                 ATTR_SENSOR: self.dli.entity_id,
             },
         }
-        # nickname removed
+        # nickname removed (no-op)
         if self.dli.state and self.dli.state != STATE_UNKNOWN:
             response[ATTR_DLI][ATTR_CURRENT] = float(self.dli.state)
         # include watering sensor entity if available
