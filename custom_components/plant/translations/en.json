@@ -96,7 +96,7 @@
       }
     }
   },
-    "card": {
+  "card": {
     "search_placeholder": "Filter plants by name or room...",
     "sort_watering": "Time until watering",
     "sort_name": "Name",

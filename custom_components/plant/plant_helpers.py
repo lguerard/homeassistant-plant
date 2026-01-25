@@ -308,7 +308,6 @@ class PlantHelper:
             DATA_SOURCE: data_source,
             FLOW_PLANT_INFO: {
                 ATTR_NAME: config.get(ATTR_NAME),
-                    # nickname removed
                 ATTR_SPECIES: config.get(ATTR_SPECIES) or "",
                 ATTR_ENTITY_PICTURE: entity_picture or "",
                 OPB_DISPLAY_PID: display_species or "",
