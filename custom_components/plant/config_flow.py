@@ -123,11 +123,18 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(
                 ATTR_SPECIES, default=self.plant_info.get(ATTR_SPECIES, "")
             ): cv.string,
-            vol.Optional(
-                ATTR_NOTIFY_SERVICE,
-                default=self.plant_info.get(ATTR_NOTIFY_SERVICE, ""),
-            ): cv.string,
+            # Simplified dropdown for notify service (not an entity selector).
+            # Populate options from available notify services at runtime.
         }
+        # Build notify service options dynamically from hass services
+        notify_services = self.hass.services.async_services().get("notify", {})
+        notify_options = [
+            {"label": "No notifications (use persistent notification)", "value": ""}
+        ]
+        for svc in sorted(notify_services.keys()):
+            notify_options.append({"label": svc, "value": f"notify.{svc}"})
+
+        data_schema[ATTR_NOTIFY_SERVICE] = selector({ATTR_SELECT: {ATTR_OPTIONS: notify_options}})
 
         data_schema[FLOW_SENSOR_TEMPERATURE] = selector(
             {
