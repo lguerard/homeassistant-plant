@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
 import logging
 import random
+from datetime import datetime, timedelta
 
 from homeassistant.components.integration.const import METHOD_TRAPEZOIDAL
 from homeassistant.components.integration.sensor import IntegrationSensor
@@ -117,6 +117,11 @@ async def async_setup_entry(
         humidity=pcurh,
     )
 
+    # Add watering/scheduler sensor
+    pcurw = PlantWateringSensor(hass, entry, plant)
+    async_add_entities([pcurw])
+    hass.data[DOMAIN][entry.entry_id]["watering"] = pcurw
+
     # Create and add the integral-entities
     # Must be run after the sensors are added to the plant
 
@@ -196,23 +201,33 @@ class PlantCurrentStatus(RestoreSensor):
         """The external sensor we are tracking"""
         return self._external_sensor
 
-    def replace_external_sensor(self, new_sensor: str | None) -> None:
+    def replace_external_sensor(self, new_sensor: str | list | None) -> None:
         """Modify the external sensor"""
         _LOGGER.info("Setting %s external sensor to %s", self.entity_id, new_sensor)
         # pylint: disable=attribute-defined-outside-init
         self._external_sensor = new_sensor
+        # track our own entity id and all external sensors (single or list)
         self.async_track_entity(self.entity_id)
-        self.async_track_entity(self.external_sensor)
+        self.async_track_entity(self._external_sensor)
 
         self.async_write_ha_state()
 
-    def async_track_entity(self, entity_id: str) -> None:
-        """Track state_changed of certain entities"""
+    def async_track_entity(self, entity_id: str | list) -> None:
+        """Track state_changed of certain entities. Accepts single id or list."""
+        if not entity_id:
+            return
+        if isinstance(entity_id, (list, tuple)):
+            to_add = [e for e in entity_id if e and e not in self._tracker]
+            if to_add:
+                async_track_state_change_event(
+                    self._hass, to_add, self._state_changed_event
+                )
+                self._tracker.extend(to_add)
+            return
+        # single entity
         if entity_id and entity_id not in self._tracker:
             async_track_state_change_event(
-                self._hass,
-                list([entity_id]),
-                self._state_changed_event,
+                self._hass, [entity_id], self._state_changed_event
             )
             self._tracker.append(entity_id)
 
@@ -237,42 +252,45 @@ class PlantCurrentStatus(RestoreSensor):
 
     async def async_update(self) -> None:
         """Set state and unit to the parent sensor state and unit"""
-        if self.external_sensor:
-            try:
-                self._attr_native_value = float(
-                    self._hass.states.get(self.external_sensor).state
-                )
-                if (
-                    ATTR_UNIT_OF_MEASUREMENT
-                    in self._hass.states.get(self.external_sensor).attributes
-                ):
-                    self._attr_native_unit_of_measurement = self._hass.states.get(
-                        self.external_sensor
-                    ).attributes[ATTR_UNIT_OF_MEASUREMENT]
-            except AttributeError:
-                _LOGGER.debug(
-                    "Unknown external sensor for %s: %s, setting to default: %s",
-                    self.entity_id,
-                    self.external_sensor,
-                    self._default_state,
-                )
-                self._attr_native_value = self._default_state
-            except ValueError:
-                _LOGGER.debug(
-                    "Unknown external value for %s: %s = %s, setting to default: %s",
-                    self.entity_id,
-                    self.external_sensor,
-                    self._hass.states.get(self.external_sensor).state,
-                    self._default_state,
-                )
-                self._attr_native_value = self._default_state
-
-        else:
+        if not self._external_sensor:
             _LOGGER.debug(
                 "External sensor not set for %s, setting to default: %s",
                 self.entity_id,
                 self._default_state,
             )
+            self._attr_native_value = self._default_state
+            return
+
+        # support single sensor id or list of sensors (compute average of valid values)
+        sensors = (
+            self._external_sensor
+            if isinstance(self._external_sensor, (list, tuple))
+            else [self._external_sensor]
+        )
+        values = []
+        unit = None
+        for sid in sensors:
+            try:
+                s = self._hass.states.get(sid)
+                if (
+                    s
+                    and s.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE)
+                    and s.state is not None
+                ):
+                    values.append(float(s.state))
+                    if not unit and ATTR_UNIT_OF_MEASUREMENT in s.attributes:
+                        unit = s.attributes[ATTR_UNIT_OF_MEASUREMENT]
+            except Exception:
+                continue
+
+        if values:
+            try:
+                self._attr_native_value = sum(values) / len(values)
+                if unit:
+                    self._attr_native_unit_of_measurement = unit
+            except Exception:
+                self._attr_native_value = self._default_state
+        else:
             self._attr_native_value = self._default_state
 
     @callback
@@ -300,17 +318,54 @@ class PlantCurrentStatus(RestoreSensor):
             ):
                 self._attr_icon = new_state.attributes[ATTR_ICON]
 
+        # If update comes from one of the tracked external sensors, recompute aggregated value
+        if self._external_sensor:
+            sensors = (
+                self._external_sensor
+                if isinstance(self._external_sensor, (list, tuple))
+                else [self._external_sensor]
+            )
+            if entity_id in sensors:
+                values = []
+                unit = None
+                for sid in sensors:
+                    try:
+                        s = self.hass.states.get(sid)
+                        if (
+                            s
+                            and s.state not in (STATE_UNKNOWN, STATE_UNAVAILABLE)
+                            and s.state is not None
+                        ):
+                            values.append(float(s.state))
+                            if not unit and ATTR_UNIT_OF_MEASUREMENT in s.attributes:
+                                unit = s.attributes[ATTR_UNIT_OF_MEASUREMENT]
+                    except Exception:
+                        continue
+                if values:
+                    try:
+                        self._attr_native_value = sum(values) / len(values)
+                        if unit:
+                            self._attr_native_unit_of_measurement = unit
+                    except Exception:
+                        self._attr_native_value = self._default_state
+                else:
+                    self._attr_native_value = self._default_state
+                return
+
+        # Default fallback
         if (
-            self.external_sensor
-            and new_state
+            new_state
             and new_state.state != STATE_UNKNOWN
             and new_state.state != STATE_UNAVAILABLE
         ):
-            self._attr_native_value = new_state.state
-            if ATTR_UNIT_OF_MEASUREMENT in new_state.attributes:
-                self._attr_native_unit_of_measurement = new_state.attributes[
-                    ATTR_UNIT_OF_MEASUREMENT
-                ]
+            try:
+                self._attr_native_value = float(new_state.state)
+                if ATTR_UNIT_OF_MEASUREMENT in new_state.attributes:
+                    self._attr_native_unit_of_measurement = new_state.attributes[
+                        ATTR_UNIT_OF_MEASUREMENT
+                    ]
+            except Exception:
+                self._attr_native_value = self._default_state
         else:
             self._attr_native_value = self._default_state
 
@@ -620,6 +675,217 @@ class PlantDailyLightIntegral(UtilityMeterSensor):
         return {
             "identifiers": {(DOMAIN, self._plant.unique_id)},
         }
+
+
+class PlantWateringSensor(PlantCurrentStatus):
+    """Sensor that computes adaptive watering interval and next watering time."""
+
+    def __init__(
+        self, hass: HomeAssistant, config: ConfigEntry, plantdevice: Entity
+    ) -> None:
+        self._hass = hass
+        self._config = config
+        self._plant = plantdevice
+        self._attr_name = f"{config.data[FLOW_PLANT_INFO][ATTR_NAME]} Watering"
+        self._attr_unique_id = f"{config.entry_id}-watering"
+        self._attr_icon = "mdi:watering-can"
+        self._attr_native_unit_of_measurement = UnitOfTime.HOURS
+        self._last_watered = None
+        self._last_notified = None
+        self._attr_native_value = None
+        super().__init__(hass, config, plantdevice)
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        state = await self.async_get_last_state()
+        if state and state.attributes.get("last_watered"):
+            try:
+                self._last_watered = datetime.fromisoformat(
+                    state.attributes.get("last_watered")
+                )
+            except Exception:
+                self._last_watered = None
+
+    def mark_watered(self, when: datetime | None = None) -> None:
+        """Mark plant as watered now (or at provided datetime)."""
+        self._last_watered = when or datetime.utcnow()
+        self.async_schedule_update_ha_state(True)
+
+    def snooze(self, hours: float = 1.0) -> None:
+        """Snooze the next watering by `hours` hours without resetting last_watered.
+
+        Implemented by moving last_watered earlier so next_watering becomes now + hours.
+        """
+        try:
+            interval = self._compute_interval_hours()
+            # set last_watered so that next_watering == now + hours
+            self._last_watered = datetime.utcnow() - timedelta(hours=(interval - hours))
+        except Exception:
+            # fallback: set last_watered so next watering is `hours` from now
+            self._last_watered = datetime.utcnow() - timedelta(hours=(24 - hours))
+        self.async_schedule_update_ha_state(True)
+
+    async def async_update(self) -> None:
+        """Recalculate interval and next watering time."""
+        now = datetime.utcnow()
+        # compute base interval from soil moisture
+        interval_hours = self._compute_interval_hours()
+
+        # determine next watering based on last_watered
+        if self._last_watered is None:
+            next_watering = now
+        else:
+            next_watering = self._last_watered + timedelta(hours=interval_hours)
+
+        hours_until = (next_watering - now).total_seconds() / 3600
+        if hours_until < 0:
+            hours_until = 0
+
+        self._attr_native_value = round(hours_until, 2)
+        # attributes
+        self._attrs = {
+            "watering_interval_hours": round(interval_hours, 2),
+            "next_watering": next_watering.isoformat(),
+            "last_watered": self._last_watered.isoformat()
+            if self._last_watered
+            else None,
+        }
+
+        # Notify user once a day when watering is due
+        try:
+            if hours_until <= 0:
+                now_utc = datetime.utcnow()
+                if self._last_notified is None or (
+                    now_utc - self._last_notified
+                ) > timedelta(hours=24):
+                    title = f"Watering needed: {self._plant.name}"
+                    message = f"{self._plant.name} needs watering now."
+
+                    # 1) Persistent notification (fallback)
+                    try:
+                        self._hass.components.persistent_notification.create(
+                            title=title, message=message
+                        )
+                    except Exception:
+                        pass
+
+                    # 2) Send through preferred notify service (if configured), else broadcast
+                    try:
+                        plant_info = self._config.data.get(FLOW_PLANT_INFO, {})
+                        preferred = plant_info.get(ATTR_NOTIFY_SERVICE)
+                        service_data = {
+                            "message": message,
+                            "data": {
+                                "actions": [
+                                    {"action": "plant_snooze", "title": "Snooze 1h"},
+                                    {"action": "plant_done", "title": "Done"},
+                                ],
+                                "entity_id": self._plant.entity_id,
+                            },
+                        }
+                        if preferred:
+                            # preferred is an entity id like notify.mobile_phone
+                            try:
+                                _, svc = preferred.split(".", 1)
+                                self._hass.services.async_call(
+                                    "notify", svc, service_data, blocking=False
+                                )
+                            except Exception:
+                                # fallback to broadcasting
+                                services = self._hass.services.async_services().get(
+                                    "notify", {}
+                                )
+                                for svc in services:
+                                    try:
+                                        self._hass.services.async_call(
+                                            "notify", svc, service_data, blocking=False
+                                        )
+                                    except Exception:
+                                        continue
+                        else:
+                            services = self._hass.services.async_services().get(
+                                "notify", {}
+                            )
+                            for svc in services:
+                                try:
+                                    self._hass.services.async_call(
+                                        "notify", svc, service_data, blocking=False
+                                    )
+                                except Exception:
+                                    continue
+                    except Exception:
+                        pass
+
+                    self._last_notified = now_utc
+        except Exception:
+            pass
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return getattr(self, "_attrs", {})
+
+    def _compute_interval_hours(self) -> float:
+        """Compute adaptive interval in hours."""
+        # sensible defaults
+        default_min = 24.0
+        default_max = 168.0
+
+        # moisture-based base interval
+        try:
+            moisture = float(
+                self._hass.states.get(self._plant.sensor_moisture.entity_id).state
+            )
+            min_m = float(self._plant.min_moisture.state)
+            max_m = float(self._plant.max_moisture.state)
+        except Exception:
+            return 72.0
+
+        if max_m <= min_m:
+            ratio = 0.5
+        else:
+            ratio = (moisture - min_m) / (max_m - min_m)
+        ratio = max(0.0, min(1.0, ratio))
+
+        base = default_min + ratio * (default_max - default_min)
+
+        # temperature factor (higher temp -> shorter interval)
+        try:
+            temp = float(
+                self._hass.states.get(self._plant.sensor_temperature.entity_id).state
+            )
+            min_t = float(self._plant.min_temperature.state)
+            max_t = float(self._plant.max_temperature.state)
+            mid = (min_t + max_t) / 2.0
+            temp_factor = 1.0 - (temp - mid) / 40.0
+            temp_factor = max(0.6, min(1.4, temp_factor))
+        except Exception:
+            temp_factor = 1.0
+
+        # humidity factor (low humidity -> shorter interval)
+        try:
+            hum = float(
+                self._hass.states.get(self._plant.sensor_humidity.entity_id).state
+            )
+            hum_factor = 1.0 - (hum - 50.0) / 200.0
+            hum_factor = max(0.7, min(1.3, hum_factor))
+        except Exception:
+            hum_factor = 1.0
+
+        weather_multiplier = 1.0
+        # If plant is outside, check weather entity for rain
+        plant_info = self._config.data.get(FLOW_PLANT_INFO, {})
+        outside = plant_info.get("outside", False)
+        weather_entity = plant_info.get("weather_entity") or "weather.home"
+        if outside and weather_entity:
+            try:
+                weather = self._hass.states.get(weather_entity)
+                if weather and weather.state and "rain" in weather.state.lower():
+                    weather_multiplier = 1.5
+            except Exception:
+                weather_multiplier = 1.0
+
+        final = base * temp_factor * hum_factor * weather_multiplier
+        return max(1.0, final)
 
 
 class PlantDummyStatus(SensorEntity):
