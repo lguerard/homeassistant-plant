@@ -1,0 +1,19 @@
+# Example Lovelace view for Plant Monitor
+# Requires: custom:auto-entities (recommended via HACS)
+
+cards:
+- type: custom:auto-entities
+  card:
+    type: entities
+    title: Plants — next watering
+  filter:
+    include:
+    - domain: sensor
+      name:
+      - /Watering$/
+  sort:
+    method: attribute
+    attribute: state
+
+# Optional: a richer card using button-card / custom templates can show image, nickname,
+# and actions (Mark watered / Snooze). If you want, I can scaffold a `custom:plant-dashboard` card next.

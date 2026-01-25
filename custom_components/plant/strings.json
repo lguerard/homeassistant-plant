@@ -8,6 +8,8 @@
         "data": {
           "name": "Plant name",
           "species": "Species",
+          "nickname": "Nickname (optional)",
+          "notify_service": "Preferred notify service (optional)",
           "temperature_sensor": "Temperature sensor",
           "moisture_sensor": "Soil moisture sensor",
           "conductivity_sensor": "Conductivity sensor",
@@ -59,6 +61,7 @@
         "data": {
           "check_days": "Illuminance check days",
           "species": "Species",
+          "nickname": "Nickname",
           "force_update": "Force refresh data from OpenPlantbook",
           "display_pid": "Plant species to display",
           "temperature_sensor": "Temperature sensor",
@@ -88,6 +91,30 @@
         },
         "new_sensor": {
           "name": "Sensor entity",
+          "mark_watered": {
+            "name": "Mark watered",
+            "description": "Mark plant(s) as watered now.",
+            "fields": {
+              "entity_id": {
+                "name": "Plant entity id",
+                "description": "Optional plant entity id to mark watered; omit to mark all."
+              }
+            }
+          },
+          "snooze": {
+            "name": "Snooze watering",
+            "description": "Snooze the next watering reminder for a plant.",
+            "fields": {
+              "entity_id": {
+                "name": "Plant entity id",
+                "description": "Optional plant entity id to snooze; omit to snooze all."
+              },
+              "hours": {
+                "name": "Hours",
+                "description": "Number of hours to snooze (default 1)."
+              }
+            }
+          },
           "description": "Entity id of the new sensor. Leave blank to remove sensor."
         }
       }

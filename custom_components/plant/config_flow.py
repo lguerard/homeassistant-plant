@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any
 import urllib.parse
+from typing import Any
 
 import voluptuous as vol
-
 from homeassistant import config_entries, data_entry_flow
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import (
@@ -25,6 +24,8 @@ from homeassistant.helpers.selector import selector
 from .const import (
     ATTR_ENTITY,
     ATTR_LIMITS,
+    ATTR_NICKNAME,
+    ATTR_NOTIFY_SERVICE,
     ATTR_OPTIONS,
     ATTR_SEARCH_FOR,
     ATTR_SELECT,
@@ -123,6 +124,13 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(
                 ATTR_SPECIES, default=self.plant_info.get(ATTR_SPECIES, "")
             ): cv.string,
+            vol.Optional(
+                ATTR_NICKNAME, default=self.plant_info.get(ATTR_NICKNAME, "")
+            ): cv.string,
+            vol.Optional(
+                ATTR_NOTIFY_SERVICE,
+                default=self.plant_info.get(ATTR_NOTIFY_SERVICE, ""),
+            ): selector({ATTR_ENTITY: {ATTR_DOMAIN: "notify"}}),
         }
 
         data_schema[FLOW_SENSOR_TEMPERATURE] = selector(
@@ -130,6 +138,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ATTR_ENTITY: {
                     ATTR_DEVICE_CLASS: SensorDeviceClass.TEMPERATURE,
                     ATTR_DOMAIN: DOMAIN_SENSOR,
+                    "multiple": True,
                 }
             }
         )
@@ -138,6 +147,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ATTR_ENTITY: {
                     ATTR_DEVICE_CLASS: SensorDeviceClass.MOISTURE,
                     ATTR_DOMAIN: DOMAIN_SENSOR,
+                    "multiple": True,
                 }
             }
         )
@@ -146,6 +156,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ATTR_ENTITY: {
                     ATTR_DEVICE_CLASS: SensorDeviceClass.CONDUCTIVITY,
                     ATTR_DOMAIN: DOMAIN_SENSOR,
+                    "multiple": True,
                 }
             }
         )
@@ -154,6 +165,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ATTR_ENTITY: {
                     ATTR_DEVICE_CLASS: SensorDeviceClass.ILLUMINANCE,
                     ATTR_DOMAIN: DOMAIN_SENSOR,
+                    "multiple": True,
                 }
             }
         )
@@ -162,6 +174,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ATTR_ENTITY: {
                     ATTR_DEVICE_CLASS: SensorDeviceClass.HUMIDITY,
                     ATTR_DOMAIN: DOMAIN_SENSOR,
+                    "multiple": True,
                 }
             }
         )

@@ -5,9 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from async_timeout import timeout
 import voluptuous as vol
-
+from async_timeout import timeout
 from homeassistant.components.persistent_notification import (
     create as create_notification,
 )
@@ -309,6 +308,7 @@ class PlantHelper:
             DATA_SOURCE: data_source,
             FLOW_PLANT_INFO: {
                 ATTR_NAME: config.get(ATTR_NAME),
+                ATTR_NICKNAME: config.get(ATTR_NICKNAME, ""),
                 ATTR_SPECIES: config.get(ATTR_SPECIES) or "",
                 ATTR_ENTITY_PICTURE: entity_picture or "",
                 OPB_DISPLAY_PID: display_species or "",
@@ -341,6 +341,12 @@ class PlantHelper:
                 FLOW_SENSOR_CONDUCTIVITY: config[ATTR_SENSORS].get(ATTR_CONDUCTIVITY),
                 FLOW_SENSOR_ILLUMINANCE: config[ATTR_SENSORS].get(ATTR_ILLUMINANCE)
                 or config[ATTR_SENSORS].get(ATTR_BRIGHTNESS),
+                # Optional: whether the plant is outside (affects watering)
+                "outside": config.get("outside", False),
+                # Optional: a weather entity to factor into watering decisions
+                "weather_entity": config.get("weather_entity", None),
+                # Optional: notify service entity id (e.g. notify.mobile_phone)
+                ATTR_NOTIFY_SERVICE: config.get(ATTR_NOTIFY_SERVICE, None),
             },
         }
         _LOGGER.debug("Resulting config: %s", ret)

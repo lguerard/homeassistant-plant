@@ -92,5 +92,16 @@
         }
       }
     }
+  },
+  "card": {
+    "search_placeholder": "Filter plants by name or room...",
+    "sort_watering": "Time until watering",
+    "sort_name": "Name",
+    "sort_nickname": "Nickname",
+    "time_until_watering": "Hours until watering:",
+    "no_watering_text": "No watering sensor linked",
+    "done": "Done",
+    "snooze_1h": "Snooze 1h",
+    "confirm_mark_done": "Mark {name} as watered?"
   }
 }
