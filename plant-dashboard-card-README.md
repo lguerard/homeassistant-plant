@@ -17,7 +17,7 @@ resources:
 type: custom:plant-dashboard-card
 show_all: true
 # options:
-# sort_by: watering | name | nickname
+# sort_by: watering | name
 # confirm_before_done: true  # shows a confirm dialog when pressing Done
 ```
 

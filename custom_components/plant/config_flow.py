@@ -24,7 +24,6 @@ from homeassistant.helpers.selector import selector
 from .const import (
     ATTR_ENTITY,
     ATTR_LIMITS,
-    ATTR_NICKNAME,
     ATTR_NOTIFY_SERVICE,
     ATTR_OPTIONS,
     ATTR_SEARCH_FOR,
@@ -196,9 +195,14 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 self.plant_info[DATA_SOURCE] = DOMAIN_PLANTBOOK
                 self.plant_info[ATTR_SPECIES] = user_input[ATTR_SPECIES]
 
-                # Return the form of the next step
+                # Try to proceed to limits step, but handle unexpected errors
                 _LOGGER.debug("Plant_info: %s", self.plant_info)
-                return await self.async_step_limits()
+                try:
+                    return await self.async_step_limits()
+                except Exception as exc:  # pylint: disable=broad-except
+                    _LOGGER.exception("Error while fetching plant limits: %s", exc)
+                    errors["base"] = "opb_error"
+                    # fall through to re-render the select form with an error message
         plant_helper = PlantHelper(self.hass)
         search_result = await plant_helper.openplantbook_search(
             species=self.plant_info[ATTR_SEARCH_FOR]

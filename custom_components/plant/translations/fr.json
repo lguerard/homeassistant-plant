@@ -21,6 +21,9 @@
       "select_species": {
         "title": "Sélectionner une espèce dans OpenPlantbook",
         "description": "{desc}",
+        "errors": {
+          "base": "Une erreur s'est produite lors de la connexion à OpenPlantbook. Veuillez réessayer plus tard."
+        },
         "data": {
           "species": "Espèce"
         },
@@ -81,7 +84,6 @@
     "search_placeholder": "Filtrer les plantes par nom ou pièce…",
     "sort_watering": "Temps avant arrosage",
     "sort_name": "Nom",
-    "sort_nickname": "Surnom",
     "time_until_watering": "Heures avant arrosage :",
     "no_watering_text": "Aucun capteur d'arrosage lié",
     "done": "Terminé",

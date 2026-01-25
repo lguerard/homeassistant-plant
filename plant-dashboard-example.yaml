@@ -15,5 +15,5 @@ cards:
     method: attribute
     attribute: state
 
-# Optional: a richer card using button-card / custom templates can show image, nickname,
+# Optional: a richer card using button-card / custom templates can show image and actions (Mark watered / Snooze).
 # and actions (Mark watered / Snooze). If you want, I can scaffold a `custom:plant-dashboard` card next.

@@ -21,6 +21,9 @@
       "select_species": {
         "title": "Select species from OpenPlantbook",
         "description": "{desc}",
+        "errors": {
+          "base": "An error occurred while contacting OpenPlantbook. Please try again later."
+        },
         "data": {
           "species": "Species"
         },
@@ -93,11 +96,10 @@
       }
     }
   },
-  "card": {
+    "card": {
     "search_placeholder": "Filter plants by name or room...",
     "sort_watering": "Time until watering",
     "sort_name": "Name",
-    "sort_nickname": "Nickname",
     "time_until_watering": "Hours until watering:",
     "no_watering_text": "No watering sensor linked",
     "done": "Done",
