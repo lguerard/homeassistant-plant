@@ -8,7 +8,7 @@
         "data": {
           "name": "Plant name",
           "species": "Species",
-          
+
           "notify_service": "Preferred notify service (optional)",
           "temperature_sensor": "Temperature sensor",
           "moisture_sensor": "Soil moisture sensor",
@@ -61,7 +61,7 @@
         "data": {
           "check_days": "Illuminance check days",
           "species": "Species",
-          
+
           "force_update": "Force refresh data from OpenPlantbook",
           "display_pid": "Plant species to display",
           "temperature_sensor": "Temperature sensor",

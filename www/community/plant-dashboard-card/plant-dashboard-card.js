@@ -189,7 +189,7 @@
         ).localeCompare(
           b.plantState.attributes.friendly_name || b.plantState.entity_id,
         );
-      // nickname sorting removed
+
       // default: watering (nulls last)
       const av = a.wateringNum;
       const bv = b.wateringNum;
@@ -226,7 +226,7 @@
         name.textContent =
           plantState.attributes.friendly_name || plantState.entity_id;
         meta.appendChild(name);
-        // nickname removed: do not render separate nickname field
+
         const stateDiv = document.createElement("div");
         stateDiv.className = "state";
         if (wateringEntity && this._hass.states[wateringEntity]) {
