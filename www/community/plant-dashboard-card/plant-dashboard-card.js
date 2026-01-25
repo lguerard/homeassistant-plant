@@ -94,9 +94,11 @@ class PlantDashboardCard extends HTMLElement {
         const key = `component.plant.card.${k}`;
         const localized = this._hass.localize(key);
         if (localized) {
-          if (vars && typeof vars === 'object') {
+          if (vars && typeof vars === "object") {
             let out = localized;
-            Object.keys(vars).forEach((p) => { out = out.replace(`{${p}}`, vars[p]); });
+            Object.keys(vars).forEach((p) => {
+              out = out.replace(`{${p}}`, vars[p]);
+            });
             return out;
           }
           return localized;
@@ -105,7 +107,10 @@ class PlantDashboardCard extends HTMLElement {
       return null;
     };
 
-    input.placeholder = this.config.search_placeholder || _localize('search_placeholder') || 'Filter plants by name or room...';
+    input.placeholder =
+      this.config.search_placeholder ||
+      _localize("search_placeholder") ||
+      "Filter plants by name or room...";
     input.value = this._query;
     input.addEventListener("input", (e) => {
       this._query = e.target.value.toLowerCase();
@@ -116,9 +121,9 @@ class PlantDashboardCard extends HTMLElement {
     const select = document.createElement("select");
     select.setAttribute("aria-label", "Sort plants");
     [
-      ["watering", _localize('sort_watering') || 'Time until watering'],
-      ["name", _localize('sort_name') || 'Name'],
-      ["nickname", _localize('sort_nickname') || 'Nickname'],
+      ["watering", _localize("sort_watering") || "Time until watering"],
+      ["name", _localize("sort_name") || "Name"],
+      ["nickname", _localize("sort_nickname") || "Nickname"],
     ].forEach(([val, label]) => {
       const o = document.createElement("option");
       o.value = val;
@@ -238,9 +243,12 @@ class PlantDashboardCard extends HTMLElement {
         const stateDiv = document.createElement("div");
         stateDiv.className = "state";
         if (wateringEntity && this._hass.states[wateringEntity]) {
-          stateDiv.textContent = `${_localize('time_until_watering') || 'Hours until watering:'} ${wateringState}`;
+          stateDiv.textContent = `${_localize("time_until_watering") || "Hours until watering:"} ${wateringState}`;
         } else {
-          stateDiv.textContent = this.config.no_watering_text || _localize('no_watering_text') || 'No watering sensor linked';
+          stateDiv.textContent =
+            this.config.no_watering_text ||
+            _localize("no_watering_text") ||
+            "No watering sensor linked";
         }
         meta.appendChild(stateDiv);
         plantEl.appendChild(meta);
@@ -248,12 +256,19 @@ class PlantDashboardCard extends HTMLElement {
         const actions = document.createElement("div");
         actions.className = "actions";
         const btnDone = document.createElement("button");
-        btnDone.innerHTML = this.config.done_label || ( _localize('done') || '✅ Done' );
+        btnDone.innerHTML =
+          this.config.done_label || _localize("done") || "✅ Done";
         btnDone.setAttribute("aria-label", "Mark watered");
         btnDone.addEventListener("click", () => {
-          const plantName = plantState.attributes.friendly_name || plantState.entity_id;
-          const localizedConfirm = _localize('confirm_mark_done', { name: plantName });
-          const confirmMsg = this.config.confirm_mark_done || localizedConfirm || `Mark ${plantName} as watered?`;
+          const plantName =
+            plantState.attributes.friendly_name || plantState.entity_id;
+          const localizedConfirm = _localize("confirm_mark_done", {
+            name: plantName,
+          });
+          const confirmMsg =
+            this.config.confirm_mark_done ||
+            localizedConfirm ||
+            `Mark ${plantName} as watered?`;
           if (
             this.config.confirm_before_done === false ||
             window.confirm(confirmMsg)
@@ -266,7 +281,8 @@ class PlantDashboardCard extends HTMLElement {
         actions.appendChild(btnDone);
 
         const btnSnooze = document.createElement("button");
-        btnSnooze.innerHTML = this.config.snooze_label || (_localize('snooze_1h') || '⏱️ Snooze 1h');
+        btnSnooze.innerHTML =
+          this.config.snooze_label || _localize("snooze_1h") || "⏱️ Snooze 1h";
         btnSnooze.setAttribute("aria-label", "Snooze 1 hour");
         btnSnooze.addEventListener("click", () => {
           this._hass.callService("plant", "snooze", {

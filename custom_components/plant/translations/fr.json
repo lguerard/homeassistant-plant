@@ -76,8 +76,7 @@
         }
       }
     }
-  }
-  ,
+  },
   "card": {
     "search_placeholder": "Filtrer les plantes par nom ou pièce…",
     "sort_watering": "Temps avant arrosage",
