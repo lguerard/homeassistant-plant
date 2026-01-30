@@ -122,6 +122,67 @@ class TestConfigFlowUserStep:
         assert result["type"] == FlowResultType.FORM
         assert result["step_id"] == "limits"
 
+    async def test_user_step_with_multiple_sensors(
+        self,
+        hass: HomeAssistant,
+        mock_no_openplantbook,
+    ) -> None:
+        """Test providing multiple sensors via primary + extra field merges into ATTR_SENSORS."""
+        hass.states.async_set("sensor.temp", "21", {"device_class": "temperature"})
+        hass.states.async_set("sensor.temp2", "22", {"device_class": "temperature"})
+        hass.states.async_set("sensor.temp3", "23", {"device_class": "temperature"})
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": config_entries.SOURCE_USER}
+        )
+
+        # Submit the user step with primary and extra sensors
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                ATTR_NAME: "My Plant",
+                ATTR_SPECIES: "ficus",
+                FLOW_SENSOR_TEMPERATURE: "sensor.temp",
+                FLOW_SENSOR_TEMPERATURE + "_extra": "sensor.temp2, sensor.temp3",
+            },
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "limits"
+
+        # Complete the limits step to create the entry
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            {
+                OPB_DISPLAY_PID: "Ficus",
+                CONF_MAX_MOISTURE: 60,
+                CONF_MIN_MOISTURE: 20,
+                CONF_MAX_TEMPERATURE: 40,
+                CONF_MIN_TEMPERATURE: 10,
+                CONF_MAX_CONDUCTIVITY: 3000,
+                CONF_MIN_CONDUCTIVITY: 500,
+                CONF_MAX_ILLUMINANCE: 100000,
+                CONF_MIN_ILLUMINANCE: 0,
+                CONF_MAX_HUMIDITY: 60,
+                CONF_MIN_HUMIDITY: 20,
+                CONF_MAX_DLI: 30,
+                CONF_MIN_DLI: 2,
+                ATTR_ENTITY_PICTURE: "",
+            },
+        )
+
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+        assert result["title"] == "My Plant"
+        assert FLOW_PLANT_INFO in result["data"]
+
+        # The resulting data should contain an ATTR_SENSORS mapping
+        sensors = result["data"][FLOW_PLANT_INFO].get(ATTR_SENSORS)
+        assert sensors is not None
+        assert ATTR_TEMPERATURE in sensors
+        # Temperature entry should be a list with three sensors (primary + extras)
+        assert isinstance(sensors[ATTR_TEMPERATURE], list)
+        assert sensors[ATTR_TEMPERATURE] == ["sensor.temp", "sensor.temp2", "sensor.temp3"]
+
 
 class TestConfigFlowSelectSpeciesStep:
     """Tests for the select_species step of config flow."""

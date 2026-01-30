@@ -140,6 +140,9 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             }
         )
+        # Optional comma-separated extra sensors for advanced multi-sensor setups
+        data_schema[vol.Optional(FLOW_SENSOR_TEMPERATURE + "_extra", default="")] = cv.string
+
         data_schema[FLOW_SENSOR_MOISTURE] = selector(
             {
                 ATTR_ENTITY: {
@@ -148,6 +151,8 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             }
         )
+        data_schema[vol.Optional(FLOW_SENSOR_MOISTURE + "_extra", default="")] = cv.string
+
         data_schema[FLOW_SENSOR_CONDUCTIVITY] = selector(
             {
                 ATTR_ENTITY: {
@@ -156,6 +161,8 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             }
         )
+        data_schema[vol.Optional(FLOW_SENSOR_CONDUCTIVITY + "_extra", default="")] = cv.string
+
         data_schema[FLOW_SENSOR_ILLUMINANCE] = selector(
             {
                 ATTR_ENTITY: {
@@ -164,6 +171,8 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             }
         )
+        data_schema[vol.Optional(FLOW_SENSOR_ILLUMINANCE + "_extra", default="")] = cv.string
+
         data_schema[FLOW_SENSOR_HUMIDITY] = selector(
             {
                 ATTR_ENTITY: {
@@ -172,6 +181,8 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             }
         )
+        data_schema[vol.Optional(FLOW_SENSOR_HUMIDITY + "_extra", default="")] = cv.string
+
         data_schema[FLOW_SENSOR_CO2] = selector(
             {
                 ATTR_ENTITY: {
@@ -180,6 +191,8 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             }
         )
+        data_schema[vol.Optional(FLOW_SENSOR_CO2 + "_extra", default="")] = cv.string
+
         data_schema[FLOW_SENSOR_SOIL_TEMPERATURE] = selector(
             {
                 ATTR_ENTITY: {
@@ -188,6 +201,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             }
         )
+        data_schema[vol.Optional(FLOW_SENSOR_SOIL_TEMPERATURE + "_extra", default="")] = cv.string
 
         return self.async_show_form(
             step_id="user",
@@ -426,7 +440,44 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_limits_done(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Create entry after limits are set."""
+        """Create entry after limits are set. Merge primary and extra sensor inputs into ATTR_SENSORS."""
+        # Build sensors mapping from any single or extra comma-separated entries
+        sensors: dict[str, Any] = {}
+        mapping = {
+            ATTR_TEMPERATURE: FLOW_SENSOR_TEMPERATURE,
+            ATTR_MOISTURE: FLOW_SENSOR_MOISTURE,
+            ATTR_CONDUCTIVITY: FLOW_SENSOR_CONDUCTIVITY,
+            ATTR_ILLUMINANCE: FLOW_SENSOR_ILLUMINANCE,
+            ATTR_HUMIDITY: FLOW_SENSOR_HUMIDITY,
+            ATTR_CO2: FLOW_SENSOR_CO2,
+            ATTR_SOIL_TEMPERATURE: FLOW_SENSOR_SOIL_TEMPERATURE,
+        }
+        for attr, key in mapping.items():
+            primary = self.plant_info.get(key)
+            extra = self.plant_info.get(f"{key}_extra") or ""
+            values: list[str] = []
+            if primary:
+                # If primary is a list (migrated YAML), extend it
+                if isinstance(primary, (list, tuple)):
+                    values.extend(primary)
+                else:
+                    values.append(primary)
+            if extra:
+                extra_list = [s.strip() for s in str(extra).split(",") if s.strip()]
+                values.extend(extra_list)
+            if not values:
+                continue
+            sensors[attr] = values if len(values) > 1 else values[0]
+            # Clean up the temporary keys from plant_info
+            if key in self.plant_info:
+                self.plant_info.pop(key)
+            if f"{key}_extra" in self.plant_info:
+                self.plant_info.pop(f"{key}_extra")
+
+        # Put normalized sensors into the plant info structure
+        if sensors:
+            self.plant_info[ATTR_SENSORS] = sensors
+
         return self.async_create_entry(
             title=self.plant_info[ATTR_NAME],
             data={FLOW_PLANT_INFO: self.plant_info},

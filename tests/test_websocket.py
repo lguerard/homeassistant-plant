@@ -59,6 +59,35 @@ class TestWebsocketGetInfo:
         assert ATTR_HUMIDITY in result
         assert ATTR_DLI in result
 
+    async def test_websocket_get_info_skips_missing_sensors(
+        self,
+        hass: HomeAssistant,
+        init_integration: MockConfigEntry,
+        hass_ws_client,
+    ) -> None:
+        """If a particular sensor is not configured, it should not appear in the websocket info."""
+        plant = hass.data[DOMAIN][init_integration.entry_id][ATTR_PLANT]
+        plant.plant_complete = True
+
+        # Remove humidity sensor reference and ensure it is not present in response
+        plant.sensor_humidity = None
+
+        client = await hass_ws_client(hass)
+
+        await client.send_json(
+            {
+                "id": 1,
+                "type": "plant/get_info",
+                "entity_id": plant.entity_id,
+            }
+        )
+
+        response = await client.receive_json()
+        assert response["success"] is True
+        result = response["result"]["result"]
+
+        assert ATTR_HUMIDITY not in result
+
     async def test_websocket_get_info_entity_structure(
         self,
         hass: HomeAssistant,

@@ -398,6 +398,17 @@ class PlantHelper:
         _LOGGER.debug("Parsing input config: %s", config)
         _LOGGER.debug("Display pid: %s", display_species)
 
+        def _normalize_sensor_value(val: Any) -> Any:
+            if val is None:
+                return None
+            if isinstance(val, (list, tuple)):
+                return list(val)
+            if isinstance(val, str):
+                if "," in val:
+                    return [s.strip() for s in val.split(",") if s.strip()]
+                return val
+            return val
+
         ret = {
             DATA_SOURCE: data_source,
             FLOW_PLANT_INFO: {
@@ -437,15 +448,15 @@ class PlantHelper:
                     CONF_MAX_DLI: config.get(CONF_MAX_DLI, max_dli),
                     CONF_MIN_DLI: config.get(CONF_MIN_DLI, min_dli),
                 },
-                FLOW_SENSOR_TEMPERATURE: config[ATTR_SENSORS].get(ATTR_TEMPERATURE),
-                FLOW_SENSOR_MOISTURE: config[ATTR_SENSORS].get(ATTR_MOISTURE),
-                FLOW_SENSOR_CONDUCTIVITY: config[ATTR_SENSORS].get(ATTR_CONDUCTIVITY),
-                FLOW_SENSOR_ILLUMINANCE: config[ATTR_SENSORS].get(ATTR_ILLUMINANCE)
-                or config[ATTR_SENSORS].get(ATTR_BRIGHTNESS),
-                FLOW_SENSOR_CO2: config[ATTR_SENSORS].get(ATTR_CO2),
-                FLOW_SENSOR_SOIL_TEMPERATURE: config[ATTR_SENSORS].get(
+                FLOW_SENSOR_TEMPERATURE: _normalize_sensor_value(config[ATTR_SENSORS].get(ATTR_TEMPERATURE)),
+                FLOW_SENSOR_MOISTURE: _normalize_sensor_value(config[ATTR_SENSORS].get(ATTR_MOISTURE)),
+                FLOW_SENSOR_CONDUCTIVITY: _normalize_sensor_value(config[ATTR_SENSORS].get(ATTR_CONDUCTIVITY)),
+                FLOW_SENSOR_ILLUMINANCE: _normalize_sensor_value(config[ATTR_SENSORS].get(ATTR_ILLUMINANCE)
+                or config[ATTR_SENSORS].get(ATTR_BRIGHTNESS)),
+                FLOW_SENSOR_CO2: _normalize_sensor_value(config[ATTR_SENSORS].get(ATTR_CO2)),
+                FLOW_SENSOR_SOIL_TEMPERATURE: _normalize_sensor_value(config[ATTR_SENSORS].get(
                     ATTR_SOIL_TEMPERATURE
-                ),
+                )),
             },
         }
         _LOGGER.debug("Resulting config: %s", ret)
