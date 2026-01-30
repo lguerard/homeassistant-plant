@@ -285,6 +285,64 @@ class TestPlantCurrentSensors:
             sensor.native_value is None or sensor.native_value == sensor._default_state
         )
 
+    async def test_sensor_handles_multiple_external_sensors(
+        self,
+        hass: HomeAssistant,
+        init_integration: MockConfigEntry,
+    ) -> None:
+        """Sensor should accept a list of external sensors and pick first valid value."""
+        plant = hass.data[DOMAIN][init_integration.entry_id][ATTR_PLANT]
+        sensor = plant.sensor_temperature
+
+        # Create two external sensors (one valid, one invalid)
+        hass.states.async_set("sensor.temp_a", "21", {"unit_of_measurement": "°C"})
+        hass.states.async_set("sensor.temp_b", "invalid", {"unit_of_measurement": "°C"})
+        await hass.async_block_till_done()
+
+        # Set external sensor to a list
+        sensor.replace_external_sensor(["sensor.temp_a", "sensor.temp_b"])
+        await hass.async_block_till_done()
+
+        # Ensure both are tracked
+        assert "sensor.temp_a" in sensor._tracker and "sensor.temp_b" in sensor._tracker
+
+        # async_update should pick the first valid numeric sensor
+        await sensor.async_update()
+        assert sensor.native_value == 21.0
+
+    async def test_entity_registry_update_handles_list_rename_and_removal(
+        self,
+        hass: HomeAssistant,
+        init_integration: MockConfigEntry,
+    ) -> None:
+        """Renaming or removing an external sensor should update the list appropriately."""
+        plant = hass.data[DOMAIN][init_integration.entry_id][ATTR_PLANT]
+        sensor = plant.sensor_temperature
+
+        sensor.replace_external_sensor(["sensor.rename_me", "sensor.keep"])
+        await hass.async_block_till_done()
+
+        # Simulate rename of one of the sensors
+        hass.bus.async_fire(
+            EVENT_ENTITY_REGISTRY_UPDATED,
+            {"action": "update", "old_entity_id": "sensor.rename_me", "entity_id": "sensor.renamed"},
+        )
+        await hass.async_block_till_done()
+
+        current = sensor.external_sensor
+        assert (isinstance(current, list) and "sensor.renamed" in current) or current == "sensor.renamed"
+
+        # Simulate removal of the renamed sensor
+        hass.bus.async_fire(
+            EVENT_ENTITY_REGISTRY_UPDATED,
+            {"action": "remove", "entity_id": "sensor.renamed"},
+        )
+        await hass.async_block_till_done()
+
+        current = sensor.external_sensor
+        # sensor.renamed should have been removed from the list
+        assert not ((isinstance(current, list) and "sensor.renamed" in current) or current == "sensor.renamed")
+
 
 class TestPpfdSensor:
     """Tests for PPFD sensor entity."""
@@ -392,6 +450,29 @@ class TestDliSensor:
 
         # Verify the property returns the correct unit
         assert dli_sensor.native_unit_of_measurement == UNIT_DLI
+
+    async def test_dli_state_class(
+        self,
+        hass: HomeAssistant,
+        init_integration: MockConfigEntry,
+    ) -> None:
+        """DLI sensor should expose a state_class for long-term statistics."""
+        plant = hass.data[DOMAIN][init_integration.entry_id][ATTR_PLANT]
+        dli_sensor = plant.dli
+
+        assert dli_sensor.state_class == SensorStateClass.MEASUREMENT
+
+    async def test_dli_24h_unit_and_state_class(
+        self,
+        hass: HomeAssistant,
+        init_integration: MockConfigEntry,
+    ) -> None:
+        """DLI 24h sensor should have correct unit and state_class."""
+        plant = hass.data[DOMAIN][init_integration.entry_id][ATTR_PLANT]
+        dli_24h = plant.dli_24h
+
+        assert dli_24h.native_unit_of_measurement == UNIT_DLI
+        assert dli_24h.state_class == SensorStateClass.MEASUREMENT
 
 
 class TestTotalLightIntegralSensor:

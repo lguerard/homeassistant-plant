@@ -268,15 +268,34 @@ class PlantCurrentStatus(RestoreSensor):
             new_sensor,
         )
 
-    def async_track_entity(self, entity_id: str) -> None:
-        """Track state_changed of certain entities"""
-        if entity_id and entity_id not in self._tracker:
-            async_track_state_change_event(
-                self.hass,
-                [entity_id],
-                self._state_changed_event,
-            )
-            self._tracker.append(entity_id)
+    def async_track_entity(self, entity_id: str | list[str]) -> None:
+        """Track state_changed of certain entities.
+
+        Support single entity id (string) or a list of entity ids. Ensure the
+        tracker contains each individual entity id and register state change
+        listeners for them.
+        """
+        if not entity_id:
+            return
+
+        # Normalize to a list of entity ids
+        if isinstance(entity_id, (list, tuple)):
+            for eid in entity_id:
+                if eid and eid not in self._tracker:
+                    async_track_state_change_event(
+                        self.hass,
+                        [eid],
+                        self._state_changed_event,
+                    )
+                    self._tracker.append(eid)
+        else:
+            if entity_id and entity_id not in self._tracker:
+                async_track_state_change_event(
+                    self.hass,
+                    [entity_id],
+                    self._state_changed_event,
+                )
+                self._tracker.append(entity_id)
 
     async def async_added_to_hass(self) -> None:
         """Handle entity which will be added."""
@@ -310,22 +329,50 @@ class PlantCurrentStatus(RestoreSensor):
                     return
                 old_entity_id = event.data["old_entity_id"]
                 new_entity_id = event.data["entity_id"]
-                if self._external_sensor and old_entity_id == self._external_sensor:
-                    _LOGGER.debug(
-                        "External sensor renamed from %s to %s, updating tracking",
-                        old_entity_id,
-                        new_entity_id,
-                    )
-                    self.replace_external_sensor(new_entity_id)
+                if not self._external_sensor:
+                    return
+                # Handle list case and single-string case
+                if isinstance(self._external_sensor, (list, tuple)):
+                    if old_entity_id in self._external_sensor:
+                        _LOGGER.debug(
+                            "External sensor renamed from %s to %s, updating tracking",
+                            old_entity_id,
+                            new_entity_id,
+                        )
+                        new_list = [new_entity_id if x == old_entity_id else x for x in self._external_sensor]
+                        self.replace_external_sensor(new_list)
+                else:
+                    if old_entity_id == self._external_sensor:
+                        _LOGGER.debug(
+                            "External sensor renamed from %s to %s, updating tracking",
+                            old_entity_id,
+                            new_entity_id,
+                        )
+                        self.replace_external_sensor(new_entity_id) 
             elif action == "remove":
                 # Check if our external sensor was deleted
                 entity_id = event.data["entity_id"]
-                if self._external_sensor and entity_id == self._external_sensor:
-                    _LOGGER.info(
-                        "External sensor %s was deleted, clearing reference",
-                        entity_id,
-                    )
-                    self.replace_external_sensor(None)
+                if not self._external_sensor:
+                    return
+                # Handle list case and single-string case
+                if isinstance(self._external_sensor, (list, tuple)):
+                    if entity_id in self._external_sensor:
+                        _LOGGER.info(
+                            "External sensor %s was deleted, removing from reference",
+                            entity_id,
+                        )
+                        new_list = [x for x in self._external_sensor if x != entity_id]
+                        if new_list:
+                            self.replace_external_sensor(new_list)
+                        else:
+                            self.replace_external_sensor(None)
+                else:
+                    if entity_id == self._external_sensor:
+                        _LOGGER.info(
+                            "External sensor %s was deleted, clearing reference",
+                            entity_id,
+                        )
+                        self.replace_external_sensor(None) 
 
         self.async_on_remove(
             self.hass.bus.async_listen(
@@ -335,33 +382,42 @@ class PlantCurrentStatus(RestoreSensor):
         )
 
     async def async_update(self) -> None:
-        """Set state and unit to the parent sensor state and unit"""
+        """Set state and unit to the parent sensor state and unit."""
         if self.external_sensor:
             try:
-                self._attr_native_value = float(
-                    self.hass.states.get(self.external_sensor).state
+                # Support single or multiple external sensors. If a list is
+                # provided, pick the first sensor that has a valid numeric
+                # value (and is not unknown/unavailable).
+                candidates = (
+                    list(self.external_sensor)
+                    if isinstance(self.external_sensor, (list, tuple))
+                    else [self.external_sensor]
                 )
-                if (
-                    ATTR_UNIT_OF_MEASUREMENT
-                    in self.hass.states.get(self.external_sensor).attributes
-                ):
-                    self._attr_native_unit_of_measurement = self.hass.states.get(
-                        self.external_sensor
-                    ).attributes[ATTR_UNIT_OF_MEASUREMENT]
+                value_set = False
+                for candidate in candidates:
+                    state = self.hass.states.get(candidate)
+                    if not state or state.state in (STATE_UNKNOWN, STATE_UNAVAILABLE):
+                        continue
+                    try:
+                        self._attr_native_value = float(state.state)
+                        value_set = True
+                        if ATTR_UNIT_OF_MEASUREMENT in state.attributes:
+                            self._attr_native_unit_of_measurement = state.attributes[
+                                ATTR_UNIT_OF_MEASUREMENT
+                            ]
+                        break
+                    except (ValueError, TypeError):
+                        # Try the next candidate if this value can't be parsed
+                        continue
+
+                if not value_set:
+                    raise AttributeError
+
             except AttributeError:
                 _LOGGER.debug(
                     "Unknown external sensor for %s: %s, setting to default: %s",
                     self.entity_id,
                     self.external_sensor,
-                    self._default_state,
-                )
-                self._attr_native_value = self._default_state
-            except ValueError:
-                _LOGGER.debug(
-                    "Unknown external value for %s: %s = %s, setting to default: %s",
-                    self.entity_id,
-                    self.external_sensor,
-                    self.hass.states.get(self.external_sensor).state,
                     self._default_state,
                 )
                 self._attr_native_value = self._default_state
@@ -783,6 +839,7 @@ class PlantDailyLightIntegral(UtilityMeterSensor):
     """Entity class to calculate Daily Light Integral from PPFD"""
 
     _attr_has_entity_name = True
+    _attr_state_class = SensorStateClass.MEASUREMENT
     # Custom device class for DLI (no official HA device class)
     _attr_device_class = ATTR_DLI
     _attr_icon = ICON_DLI
@@ -895,6 +952,7 @@ class PlantDailyLightIntegral24h(StatisticsSensor):
     """
 
     _attr_has_entity_name = True
+    _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_entity_category = EntityCategory.DIAGNOSTIC
     _attr_entity_registry_visible_default = False
     _attr_device_class = ATTR_DLI
