@@ -87,11 +87,11 @@ PLATFORMS = [Platform.NUMBER, Platform.SENSOR]
 # Matches format from https://www.home-assistant.io/integrations/plant/
 PLANT_SENSOR_SCHEMA = vol.Schema(
     {
-        vol.Optional(ATTR_MOISTURE): cv.entity_id,
-        vol.Optional(ATTR_TEMPERATURE): cv.entity_id,
-        vol.Optional(ATTR_CONDUCTIVITY): cv.entity_id,
-        vol.Optional(ATTR_BRIGHTNESS): cv.entity_id,
-        vol.Optional(ATTR_HUMIDITY): cv.entity_id,
+        vol.Optional(ATTR_MOISTURE): vol.Any(cv.entity_id, vol.All(cv.ensure_list, [cv.entity_id])),
+        vol.Optional(ATTR_TEMPERATURE): vol.Any(cv.entity_id, vol.All(cv.ensure_list, [cv.entity_id])),
+        vol.Optional(ATTR_CONDUCTIVITY): vol.Any(cv.entity_id, vol.All(cv.ensure_list, [cv.entity_id])),
+        vol.Optional(ATTR_BRIGHTNESS): vol.Any(cv.entity_id, vol.All(cv.ensure_list, [cv.entity_id])),
+        vol.Optional(ATTR_HUMIDITY): vol.Any(cv.entity_id, vol.All(cv.ensure_list, [cv.entity_id])),
         vol.Optional("battery"): cv.entity_id,  # Native HA has battery, we ignore it
     }
 )
@@ -615,74 +615,90 @@ class PlantDevice(Entity):
             # We are not fully set up, so we just return an empty dict for now
             return {}
 
-        response = {
-            ATTR_TEMPERATURE: {
-                ATTR_MAX: self.max_temperature.state,
-                ATTR_MIN: self.min_temperature.state,
+            response: dict = {}
+
+        if self.sensor_temperature is not None:
+            response[ATTR_TEMPERATURE] = {
+                ATTR_MAX: self.max_temperature.state if self.max_temperature else None,
+                ATTR_MIN: self.min_temperature.state if self.min_temperature else None,
                 ATTR_CURRENT: self.sensor_temperature.state or STATE_UNAVAILABLE,
                 ATTR_ICON: self._get_entity_icon(self.sensor_temperature),
-                ATTR_UNIT_OF_MEASUREMENT: self.sensor_temperature.unit_of_measurement,
+                ATTR_UNIT_OF_MEASUREMENT: getattr(self.sensor_temperature, "unit_of_measurement", None),
                 ATTR_SENSOR: self.sensor_temperature.entity_id,
-            },
-            ATTR_ILLUMINANCE: {
-                ATTR_MAX: self.max_illuminance.state,
-                ATTR_MIN: self.min_illuminance.state,
+            }
+
+        if self.sensor_illuminance is not None:
+            response[ATTR_ILLUMINANCE] = {
+                ATTR_MAX: self.max_illuminance.state if self.max_illuminance else None,
+                ATTR_MIN: self.min_illuminance.state if self.min_illuminance else None,
                 ATTR_CURRENT: self.sensor_illuminance.state or STATE_UNAVAILABLE,
                 ATTR_ICON: self._get_entity_icon(self.sensor_illuminance),
-                ATTR_UNIT_OF_MEASUREMENT: self.sensor_illuminance.unit_of_measurement,
+                ATTR_UNIT_OF_MEASUREMENT: getattr(self.sensor_illuminance, "unit_of_measurement", None),
                 ATTR_SENSOR: self.sensor_illuminance.entity_id,
-            },
-            ATTR_MOISTURE: {
-                ATTR_MAX: self.max_moisture.state,
-                ATTR_MIN: self.min_moisture.state,
+            }
+
+        if self.sensor_moisture is not None:
+            response[ATTR_MOISTURE] = {
+                ATTR_MAX: self.max_moisture.state if self.max_moisture else None,
+                ATTR_MIN: self.min_moisture.state if self.min_moisture else None,
                 ATTR_CURRENT: self.sensor_moisture.state or STATE_UNAVAILABLE,
                 ATTR_ICON: self._get_entity_icon(self.sensor_moisture),
-                ATTR_UNIT_OF_MEASUREMENT: self.sensor_moisture.unit_of_measurement,
+                ATTR_UNIT_OF_MEASUREMENT: getattr(self.sensor_moisture, "unit_of_measurement", None),
                 ATTR_SENSOR: self.sensor_moisture.entity_id,
-            },
-            ATTR_CONDUCTIVITY: {
-                ATTR_MAX: self.max_conductivity.state,
-                ATTR_MIN: self.min_conductivity.state,
+            }
+
+        if self.sensor_conductivity is not None:
+            response[ATTR_CONDUCTIVITY] = {
+                ATTR_MAX: self.max_conductivity.state if self.max_conductivity else None,
+                ATTR_MIN: self.min_conductivity.state if self.min_conductivity else None,
                 ATTR_CURRENT: self.sensor_conductivity.state or STATE_UNAVAILABLE,
                 ATTR_ICON: self._get_entity_icon(self.sensor_conductivity),
-                ATTR_UNIT_OF_MEASUREMENT: self.sensor_conductivity.unit_of_measurement,
+                ATTR_UNIT_OF_MEASUREMENT: getattr(self.sensor_conductivity, "unit_of_measurement", None),
                 ATTR_SENSOR: self.sensor_conductivity.entity_id,
-            },
-            ATTR_HUMIDITY: {
-                ATTR_MAX: self.max_humidity.state,
-                ATTR_MIN: self.min_humidity.state,
+            }
+
+        if self.sensor_humidity is not None:
+            response[ATTR_HUMIDITY] = {
+                ATTR_MAX: self.max_humidity.state if self.max_humidity else None,
+                ATTR_MIN: self.min_humidity.state if self.min_humidity else None,
                 ATTR_CURRENT: self.sensor_humidity.state or STATE_UNAVAILABLE,
                 ATTR_ICON: self._get_entity_icon(self.sensor_humidity),
-                ATTR_UNIT_OF_MEASUREMENT: self.sensor_humidity.unit_of_measurement,
+                ATTR_UNIT_OF_MEASUREMENT: getattr(self.sensor_humidity, "unit_of_measurement", None),
                 ATTR_SENSOR: self.sensor_humidity.entity_id,
-            },
-            ATTR_CO2: {
-                ATTR_MAX: self.max_co2.state,
-                ATTR_MIN: self.min_co2.state,
+            }
+
+        if self.sensor_co2 is not None:
+            response[ATTR_CO2] = {
+                ATTR_MAX: self.max_co2.state if self.max_co2 else None,
+                ATTR_MIN: self.min_co2.state if self.min_co2 else None,
                 ATTR_CURRENT: self.sensor_co2.state or STATE_UNAVAILABLE,
                 ATTR_ICON: self._get_entity_icon(self.sensor_co2),
-                ATTR_UNIT_OF_MEASUREMENT: self.sensor_co2.unit_of_measurement,
+                ATTR_UNIT_OF_MEASUREMENT: getattr(self.sensor_co2, "unit_of_measurement", None),
                 ATTR_SENSOR: self.sensor_co2.entity_id,
-            },
-            ATTR_SOIL_TEMPERATURE: {
-                ATTR_MAX: self.max_soil_temperature.state,
-                ATTR_MIN: self.min_soil_temperature.state,
+            }
+
+        if self.sensor_soil_temperature is not None:
+            response[ATTR_SOIL_TEMPERATURE] = {
+                ATTR_MAX: self.max_soil_temperature.state if self.max_soil_temperature else None,
+                ATTR_MIN: self.min_soil_temperature.state if self.min_soil_temperature else None,
                 ATTR_CURRENT: self.sensor_soil_temperature.state or STATE_UNAVAILABLE,
                 ATTR_ICON: self._get_entity_icon(self.sensor_soil_temperature),
-                ATTR_UNIT_OF_MEASUREMENT: self.sensor_soil_temperature.unit_of_measurement,
+                ATTR_UNIT_OF_MEASUREMENT: getattr(self.sensor_soil_temperature, "unit_of_measurement", None),
                 ATTR_SENSOR: self.sensor_soil_temperature.entity_id,
-            },
-            ATTR_DLI: {
-                ATTR_MAX: self.max_dli.state,
-                ATTR_MIN: self.min_dli.state,
+            }
+
+        # Add DLI if the entity exists
+        if self.dli is not None:
+            response[ATTR_DLI] = {
+                ATTR_MAX: self.max_dli.state if self.max_dli else None,
+                ATTR_MIN: self.min_dli.state if self.min_dli else None,
                 ATTR_CURRENT: STATE_UNAVAILABLE,
                 ATTR_ICON: self._get_entity_icon(self.dli),
-                ATTR_UNIT_OF_MEASUREMENT: self.dli.unit_of_measurement,
+                ATTR_UNIT_OF_MEASUREMENT: getattr(self.dli, "unit_of_measurement", None),
                 ATTR_SENSOR: self.dli.entity_id,
-            },
-        }
-        if self.dli.native_value is not None and self.dli.native_value != STATE_UNKNOWN:
-            response[ATTR_DLI][ATTR_CURRENT] = float(self.dli.native_value)
+            }
+            if self.dli.native_value is not None and self.dli.native_value != STATE_UNKNOWN:
+                response[ATTR_DLI][ATTR_CURRENT] = float(self.dli.native_value)
 
         # Add rolling 24h DLI if available
         if self.dli_24h is not None:
@@ -691,7 +707,7 @@ class PlantDevice(Entity):
                 ATTR_MIN: self.min_dli.state,
                 ATTR_CURRENT: STATE_UNAVAILABLE,
                 ATTR_ICON: self._get_entity_icon(self.dli_24h),
-                ATTR_UNIT_OF_MEASUREMENT: self.dli_24h.unit_of_measurement,
+                ATTR_UNIT_OF_MEASUREMENT: getattr(self.dli_24h, "unit_of_measurement", None),
                 ATTR_SENSOR: self.dli_24h.entity_id,
             }
             if (
