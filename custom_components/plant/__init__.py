@@ -26,8 +26,14 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import (
     area_registry as ar,
+)
+from homeassistant.helpers import (
     config_validation as cv,
+)
+from homeassistant.helpers import (
     device_registry as dr,
+)
+from homeassistant.helpers import (
     entity_registry as er,
 )
 from homeassistant.helpers.entity import Entity, async_generate_entity_id
@@ -441,6 +447,10 @@ class PlantDevice(RestoreEntity):
         )
         self.weather_entity = self._config.options.get(
             FLOW_WEATHER_ENTITY, config.data[FLOW_PLANT_INFO].get(FLOW_WEATHER_ENTITY)
+        )
+        self.notification_service = self._config.options.get(
+            FLOW_NOTIFICATION_SERVICE,
+            config.data[FLOW_PLANT_INFO].get(FLOW_NOTIFICATION_SERVICE),
         )
         self.watering_days = self._config.options.get(
             CONF_WATERING, config.data[FLOW_PLANT_INFO].get(CONF_WATERING, 7)
@@ -1163,8 +1173,9 @@ class PlantDevice(RestoreEntity):
         self._hass.async_create_task(self._async_send_notification())
 
     async def _async_send_notification(self) -> None:
-        """Send a notification to all_phones."""
-        if not self._hass.services.has_service("notify", "all_phones"):
+        """Send a notification."""
+        notify_service = self.notification_service or "all_phones"
+        if not self._hass.services.has_service("notify", notify_service):
             return
 
         moisture = "???"
@@ -1190,6 +1201,6 @@ class PlantDevice(RestoreEntity):
                 ],
             },
         }
-        await self._hass.services.async_call("notify", "all_phones", service_data)
+        await self._hass.services.async_call("notify", notify_service, service_data)
         self.last_notified = datetime.now().isoformat()
         self.async_write_ha_state()  # Ensure last_notified is saved to state

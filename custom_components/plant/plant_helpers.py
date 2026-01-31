@@ -376,6 +376,8 @@ class PlantHelper:
                 or config[ATTR_SENSORS].get("room_humidity"),
                 FLOW_WEATHER_ENTITY: config.get(FLOW_WEATHER_ENTITY)
                 or config.get("weather_entity"),
+                FLOW_NOTIFICATION_SERVICE: config.get(FLOW_NOTIFICATION_SERVICE)
+                or config.get("notification_service"),
             },
         }
         _LOGGER.debug("Resulting config: %s", ret)

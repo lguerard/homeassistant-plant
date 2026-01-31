@@ -193,6 +193,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data_schema[FLOW_WEATHER_ENTITY] = selector(
             {ATTR_ENTITY: {ATTR_DOMAIN: "weather"}}
         )
+        data_schema[FLOW_NOTIFICATION_SERVICE] = selector({"text": {"type": "text"}})
 
         return self.async_show_form(
             step_id="user",
@@ -587,6 +588,13 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             )
         ] = selector({ATTR_ENTITY: {ATTR_DOMAIN: "weather"}})
 
+        data_schema[
+            vol.Optional(
+                FLOW_NOTIFICATION_SERVICE,
+                description={"suggested_value": self.plant.notification_service},
+            )
+        ] = selector({"text": {"type": "text"}})
+
         data_schema[vol.Optional(FLOW_OUTSIDE, default=self.plant.outside)] = cv.boolean
 
         data_schema[
@@ -646,6 +654,9 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         )
         self.plant.weather_entity = entry.options.get(
             FLOW_WEATHER_ENTITY, self.plant.weather_entity
+        )
+        self.plant.notification_service = entry.options.get(
+            FLOW_NOTIFICATION_SERVICE, self.plant.notification_service
         )
         self.plant.outside = entry.options.get(FLOW_OUTSIDE, self.plant.outside)
         self.plant.watering_days = entry.options.get(

@@ -115,6 +115,7 @@ FLOW_SENSOR_ROOM_TEMPERATURE = "room_temperature_sensor"
 FLOW_SENSOR_ROOM_HUMIDITY = "room_humidity_sensor"
 FLOW_OUTSIDE = "outside"
 FLOW_WEATHER_ENTITY = "weather_entity"
+FLOW_NOTIFICATION_SERVICE = "notification_service"
 
 FLOW_TEMP_UNIT = "temperature_unit"
 FLOW_ILLUMINANCE_TRIGGER = "illuminance_trigger"

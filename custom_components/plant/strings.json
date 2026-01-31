@@ -16,6 +16,7 @@
           "room_temperature_sensor": "Room temperature sensor",
           "room_humidity_sensor": "Room humidity sensor",
           "weather_entity": "Weather entity",
+          "notification_service": "Notification service (e.g. notify.mobile_app_iphone)",
           "outside": "Plant is outside"
         },
         "data_description": {
@@ -81,6 +82,7 @@
           "room_temperature_sensor": "Room temperature sensor",
           "room_humidity_sensor": "Room humidity sensor",
           "weather_entity": "Weather entity",
+          "notification_service": "Notification service (e.g. notify.mobile_app_iphone)",
           "watering": "Watering frequency (days)",
           "outside": "Plant is outside"
         }
