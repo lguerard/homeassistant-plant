@@ -71,6 +71,7 @@ from .const import (
     FLOW_TEMP_UNIT,
     FLOW_TEMPERATURE_TRIGGER,
     FLOW_WEATHER_ENTITY,
+    FLOW_NOTIFICATION_SERVICE,
     OPB_DISPLAY_PID,
 )
 from .plant_helpers import PlantHelper
