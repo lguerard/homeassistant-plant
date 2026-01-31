@@ -25,12 +25,9 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import (
+    area_registry as ar,
     config_validation as cv,
-)
-from homeassistant.helpers import (
     device_registry as dr,
-)
-from homeassistant.helpers import (
     entity_registry as er,
 )
 from homeassistant.helpers.entity import Entity, async_generate_entity_id
@@ -548,6 +545,24 @@ class PlantDevice(RestoreEntity):
             "last_notified": self.last_notified,
             f"{ATTR_SPECIES}_original": self.species,
         }
+
+        # Area lookup
+        entity_registry = er.async_get(self._hass)
+        entry = entity_registry.async_get(self.entity_id)
+        if entry:
+            area_id = entry.area_id
+            if not area_id and entry.device_id:
+                device_registry = dr.async_get(self._hass)
+                device = device_registry.async_get(entry.device_id)
+                if device:
+                    area_id = device.area_id
+
+            if area_id:
+                area_registry = ar.async_get(self._hass)
+                area = area_registry.async_get_area(area_id)
+                if area:
+                    attributes["area"] = area.name
+
         return attributes
 
     @property
@@ -706,9 +721,27 @@ class PlantDevice(RestoreEntity):
             ATTR_WEATHER_ENTITY: self.weather_entity,
             ATTR_OUTSIDE: self.outside,
             ATTR_WATERING: self.watering_days,
+            "area": None,
         }
         if self.dli and self.dli.state and self.dli.state != STATE_UNKNOWN:
             response[ATTR_DLI][ATTR_CURRENT] = float(self.dli.state)
+
+        # Area lookup
+        entity_registry = er.async_get(self._hass)
+        entry = entity_registry.async_get(self.entity_id)
+        if entry:
+            area_id = entry.area_id
+            if not area_id and entry.device_id:
+                device_registry = dr.async_get(self._hass)
+                device = device_registry.async_get(entry.device_id)
+                if device:
+                    area_id = device.area_id
+
+            if area_id:
+                area_registry = ar.async_get(self._hass)
+                area = area_registry.async_get_area(area_id)
+                if area:
+                    response["area"] = area.name
 
         return response
 
