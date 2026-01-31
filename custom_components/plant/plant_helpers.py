@@ -293,7 +293,9 @@ class PlantHelper:
             )
             watering = opb_plant.get(CONF_PLANTBOOK_MAPPING[CONF_WATERING])
 
-            scientific_name = opb_plant.get("scientific_name")
+            scientific_name = opb_plant.get("scientific_name") or opb_plant.get(
+                "species"
+            )
             common_names = opb_plant.get("common_names")
             if not common_names:
                 common_names = opb_plant.get("common_name")
@@ -302,14 +304,25 @@ class PlantHelper:
                 names = []
                 for x in common_names:
                     if isinstance(x, dict):
-                        names.append(str(x.get("name", x.get("value", list(x.values())[0] if x else ""))))
+                        names.append(
+                            str(
+                                x.get(
+                                    "name",
+                                    x.get("value", list(x.values())[0] if x else ""),
+                                )
+                            )
+                        )
                     else:
                         names.append(str(x))
                 common_name = ", ".join([n for n in names if n])
             else:
                 common_name = common_names
 
-            category = opb_plant.get("category")
+            category = (
+                opb_plant.get("category")
+                or opb_plant.get("plant_type")
+                or opb_plant.get("type")
+            )
 
             origins = opb_plant.get("origin")
             if not origins:
@@ -323,7 +336,14 @@ class PlantHelper:
                 origin_list = []
                 for x in origins:
                     if isinstance(x, dict):
-                        origin_list.append(str(x.get("name", x.get("value", list(x.values())[0] if x else ""))))
+                        origin_list.append(
+                            str(
+                                x.get(
+                                    "name",
+                                    x.get("value", list(x.values())[0] if x else ""),
+                                )
+                            )
+                        )
                     else:
                         origin_list.append(str(x))
                 origin = ", ".join([o for o in origin_list if o])

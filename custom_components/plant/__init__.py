@@ -544,12 +544,21 @@ class PlantDevice(RestoreEntity):
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
-        if not self.scientific_name or self.scientific_name == "":
+        if (
+            not self.scientific_name
+            or self.scientific_name == ""
+            or not self.origin
+            or self.origin == ""
+            or not self.category
+            or self.category == ""
+        ):
             _LOGGER.debug("Refreshing OPB metadata for %s", self.name)
             plant_helper = PlantHelper(self._hass)
             opb_plant = await plant_helper.openplantbook_get(self.species)
             if opb_plant:
-                self.scientific_name = opb_plant.get("scientific_name")
+                self.scientific_name = opb_plant.get(
+                    "scientific_name"
+                ) or opb_plant.get("species")
 
                 common_names = opb_plant.get("common_names")
                 if not common_names:
@@ -558,14 +567,27 @@ class PlantDevice(RestoreEntity):
                     names = []
                     for x in common_names:
                         if isinstance(x, dict):
-                            names.append(str(x.get("name", x.get("value", list(x.values())[0] if x else ""))))
+                            names.append(
+                                str(
+                                    x.get(
+                                        "name",
+                                        x.get(
+                                            "value", list(x.values())[0] if x else ""
+                                        ),
+                                    )
+                                )
+                            )
                         else:
                             names.append(str(x))
                     self.common_name = ", ".join([n for n in names if n])
                 else:
                     self.common_name = common_names
 
-                self.category = opb_plant.get("category")
+                self.category = (
+                    opb_plant.get("category")
+                    or opb_plant.get("plant_type")
+                    or opb_plant.get("type")
+                )
 
                 origins = opb_plant.get("origin")
                 if not origins:
@@ -579,7 +601,43 @@ class PlantDevice(RestoreEntity):
                     origin_list = []
                     for x in origins:
                         if isinstance(x, dict):
-                            origin_list.append(str(x.get("name", x.get("value", list(x.values())[0] if x else ""))))
+                            origin_list.append(
+                                str(
+                                    x.get(
+                                        "name",
+                                        x.get(
+                                            "value", list(x.values())[0] if x else ""
+                                        ),
+                                    )
+                                )
+                            )
+                        else:
+                            origin_list.append(str(x))
+                    self.origin = ", ".join([o for o in origin_list if o])
+                else:
+                    self.origin = origins
+
+                self.async_write_ha_state()
+                    origins = opb_plant.get("native_location")
+                if not origins:
+                    origins = opb_plant.get("native_distribution")
+                if not origins:
+                    origins = opb_plant.get("native_range")
+
+                if isinstance(origins, list):
+                    origin_list = []
+                    for x in origins:
+                        if isinstance(x, dict):
+                            origin_list.append(
+                                str(
+                                    x.get(
+                                        "name",
+                                        x.get(
+                                            "value", list(x.values())[0] if x else ""
+                                        ),
+                                    )
+                                )
+                            )
                         else:
                             origin_list.append(str(x))
                     self.origin = ", ".join([o for o in origin_list if o])
