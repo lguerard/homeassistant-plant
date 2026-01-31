@@ -81,6 +81,7 @@ from .const import (
     SERVICE_REPLACE_SENSOR,
     STATE_HIGH,
     STATE_LOW,
+    CONF_WATERING,
 )
 from .plant_helpers import PlantHelper
 
