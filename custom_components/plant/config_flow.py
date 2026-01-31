@@ -128,6 +128,9 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             vol.Optional(
                 ATTR_SPECIES, default=self.plant_info.get(ATTR_SPECIES, "")
             ): cv.string,
+            vol.Optional(
+                FLOW_OUTSIDE, default=self.plant_info.get(FLOW_OUTSIDE, False)
+            ): cv.boolean,
         }
 
         data_schema[FLOW_SENSOR_TEMPERATURE] = selector(
@@ -583,6 +586,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             )
         ] = selector({ATTR_ENTITY: {ATTR_DOMAIN: "weather"}})
 
+        data_schema[vol.Optional(FLOW_OUTSIDE, default=self.plant.outside)] = cv.boolean
+
         data_schema[
             vol.Optional(CONF_WATERING, default=int(self.plant.watering_days))
         ] = int
@@ -641,6 +646,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         self.plant.weather_entity = entry.options.get(
             FLOW_WEATHER_ENTITY, self.plant.weather_entity
         )
+        self.plant.outside = entry.options.get(FLOW_OUTSIDE, self.plant.outside)
         self.plant.watering_days = entry.options.get(
             CONF_WATERING, self.plant.watering_days
         )

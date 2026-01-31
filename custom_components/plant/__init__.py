@@ -445,6 +445,9 @@ class PlantDevice(RestoreEntity):
         self.watering_days = self._config.options.get(
             CONF_WATERING, config.data[FLOW_PLANT_INFO].get(CONF_WATERING, 7)
         )
+        self.outside = self._config.options.get(
+            FLOW_OUTSIDE, config.data[FLOW_PLANT_INFO].get(FLOW_OUTSIDE, False)
+        )
         if not isinstance(self.watering_days, (int, float)):
             try:
                 if isinstance(self.watering_days, str):
@@ -603,16 +606,24 @@ class PlantDevice(RestoreEntity):
 
         response = {
             ATTR_TEMPERATURE: {
-                ATTR_MAX: getattr(self.max_temperature, "state", 40),
-                ATTR_MIN: getattr(self.min_temperature, "state", 10),
+                ATTR_MAX: getattr(self.max_temperature, "state", 40)
+                if temp_sensor
+                else None,
+                ATTR_MIN: getattr(self.min_temperature, "state", 10)
+                if temp_sensor
+                else None,
                 ATTR_CURRENT: temp_val,
                 ATTR_ICON: temp_icon,
                 ATTR_UNIT_OF_MEASUREMENT: temp_unit,
                 ATTR_SENSOR: temp_sensor,
             },
             ATTR_ILLUMINANCE: {
-                ATTR_MAX: getattr(self.max_illuminance, "state", 100000),
-                ATTR_MIN: getattr(self.min_illuminance, "state", 0),
+                ATTR_MAX: getattr(self.max_illuminance, "state", 100000)
+                if self.sensor_illuminance
+                else None,
+                ATTR_MIN: getattr(self.min_illuminance, "state", 0)
+                if self.sensor_illuminance
+                else None,
                 ATTR_CURRENT: getattr(
                     self.sensor_illuminance, "state", STATE_UNAVAILABLE
                 )
@@ -625,8 +636,12 @@ class PlantDevice(RestoreEntity):
                 ATTR_SENSOR: getattr(self.sensor_illuminance, "entity_id", None),
             },
             ATTR_MOISTURE: {
-                ATTR_MAX: getattr(self.max_moisture, "state", 60),
-                ATTR_MIN: getattr(self.min_moisture, "state", 20),
+                ATTR_MAX: getattr(self.max_moisture, "state", 60)
+                if self.sensor_moisture
+                else None,
+                ATTR_MIN: getattr(self.min_moisture, "state", 20)
+                if self.sensor_moisture
+                else None,
                 ATTR_CURRENT: getattr(self.sensor_moisture, "state", STATE_UNAVAILABLE)
                 if self.sensor_moisture
                 else STATE_UNAVAILABLE,
@@ -637,8 +652,12 @@ class PlantDevice(RestoreEntity):
                 ATTR_SENSOR: getattr(self.sensor_moisture, "entity_id", None),
             },
             ATTR_CONDUCTIVITY: {
-                ATTR_MAX: getattr(self.max_conductivity, "state", 3000),
-                ATTR_MIN: getattr(self.min_conductivity, "state", 500),
+                ATTR_MAX: getattr(self.max_conductivity, "state", 3000)
+                if self.sensor_conductivity
+                else None,
+                ATTR_MIN: getattr(self.min_conductivity, "state", 500)
+                if self.sensor_conductivity
+                else None,
                 ATTR_CURRENT: getattr(
                     self.sensor_conductivity, "state", STATE_UNAVAILABLE
                 )
@@ -651,16 +670,20 @@ class PlantDevice(RestoreEntity):
                 ATTR_SENSOR: getattr(self.sensor_conductivity, "entity_id", None),
             },
             ATTR_HUMIDITY: {
-                ATTR_MAX: getattr(self.max_humidity, "state", 60),
-                ATTR_MIN: getattr(self.min_humidity, "state", 20),
+                ATTR_MAX: getattr(self.max_humidity, "state", 60)
+                if hum_sensor
+                else None,
+                ATTR_MIN: getattr(self.min_humidity, "state", 20)
+                if hum_sensor
+                else None,
                 ATTR_CURRENT: hum_val,
                 ATTR_ICON: hum_icon,
                 ATTR_UNIT_OF_MEASUREMENT: hum_unit,
                 ATTR_SENSOR: hum_sensor,
             },
             ATTR_DLI: {
-                ATTR_MAX: getattr(self.max_dli, "state", 30),
-                ATTR_MIN: getattr(self.min_dli, "state", 2),
+                ATTR_MAX: getattr(self.max_dli, "state", 30) if self.dli else None,
+                ATTR_MIN: getattr(self.min_dli, "state", 2) if self.dli else None,
                 ATTR_CURRENT: STATE_UNAVAILABLE,
                 ATTR_ICON: getattr(self.dli, "icon", "mdi:counter"),
                 ATTR_UNIT_OF_MEASUREMENT: getattr(
@@ -674,6 +697,7 @@ class PlantDevice(RestoreEntity):
             ATTR_ROOM_TEMPERATURE: self.room_temperature_sensor,
             ATTR_ROOM_HUMIDITY: self.room_humidity_sensor,
             ATTR_WEATHER_ENTITY: self.weather_entity,
+            ATTR_OUTSIDE: self.outside,
         }
         if self.dli.state and self.dli.state != STATE_UNKNOWN:
             response[ATTR_DLI][ATTR_CURRENT] = float(self.dli.state)

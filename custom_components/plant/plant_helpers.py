@@ -186,6 +186,7 @@ class PlantHelper:
         max_humidity = DEFAULT_MAX_HUMIDITY
         min_humidity = DEFAULT_MIN_HUMIDITY
         watering = None
+        outside = config.get("outside", False)
         entity_picture = None
         display_species = None
         data_source = DATA_SOURCE_DEFAULT
@@ -311,6 +312,17 @@ class PlantHelper:
         _LOGGER.debug("Parsing input config: %s", config)
         _LOGGER.debug("Display pid: %s", display_species)
 
+        # Automatic watering frequency estimate based on moisture range if not provided
+        final_watering = config.get(CONF_WATERING, watering)
+        if final_watering is None:
+            moisture_range = config.get(CONF_MAX_MOISTURE, max_moisture) - config.get(
+                CONF_MIN_MOISTURE, min_moisture
+            )
+            if moisture_range > 0:
+                final_watering = max(1, round(moisture_range / 5))
+            else:
+                final_watering = 7
+
         ret = {
             DATA_SOURCE: data_source,
             FLOW_PLANT_INFO: {
@@ -318,7 +330,8 @@ class PlantHelper:
                 ATTR_SPECIES: config.get(ATTR_SPECIES) or "",
                 ATTR_ENTITY_PICTURE: entity_picture or "",
                 OPB_DISPLAY_PID: display_species or "",
-                CONF_WATERING: config.get(CONF_WATERING, watering),
+                CONF_WATERING: final_watering,
+                "outside": config.get("outside", False),
                 ATTR_LIMITS: {
                     CONF_MAX_ILLUMINANCE: config.get(
                         CONF_MAX_BRIGHTNESS,
