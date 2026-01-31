@@ -12,7 +12,11 @@
           "moisture_sensor": "Soil moisture sensor",
           "conductivity_sensor": "Conductivity sensor",
           "illuminance_sensor": "Illuminance sensor",
-          "humidity_sensor": "Air humidity sensor"
+          "humidity_sensor": "Air humidity sensor",
+          "room_temperature_sensor": "Room temperature sensor",
+          "room_humidity_sensor": "Room humidity sensor",
+          "weather_entity": "Weather entity",
+          "outside": "Plant is outside"
         },
         "data_description": {
           "species": "Will be used for searching OpenPlantbook"
@@ -46,6 +50,7 @@
           "min_conductivity": "Minimum conductivity (uS/cm)",
           "max_humidity": "Maximum air humidity (%)",
           "min_humidity": "Minimum air humidity (%)",
+          "watering": "Watering frequency (days)",
           "entity_picture": "Image URL"
         }
       }
@@ -72,7 +77,12 @@
           "humidity_trigger": "Use air humidity as problem trigger",
           "conductivity_trigger": "Use conductivity as problem trigger",
           "moisture_trigger": "Use soil moisture as problem trigger",
-          "temperature_trigger": "Use temperature as problem trigger"
+          "temperature_trigger": "Use temperature as problem trigger",
+          "room_temperature_sensor": "Room temperature sensor",
+          "room_humidity_sensor": "Room humidity sensor",
+          "weather_entity": "Weather entity",
+          "watering": "Watering frequency (days)",
+          "outside": "Plant is outside"
         }
       }
     }

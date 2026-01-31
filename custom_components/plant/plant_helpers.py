@@ -22,6 +22,7 @@ from .const import (
     ATTR_IMAGE,
     ATTR_LIMITS,
     ATTR_MOISTURE,
+    ATTR_OUTSIDE,
     ATTR_SENSORS,
     ATTR_SPECIES,
     ATTR_TEMPERATURE,
@@ -62,8 +63,10 @@ from .const import (
     DEFAULT_MIN_TEMPERATURE,
     DOMAIN_PLANTBOOK,
     FLOW_FORCE_SPECIES_UPDATE,
+    FLOW_OUTSIDE,
     FLOW_PLANT_IMAGE,
     FLOW_PLANT_INFO,
+    FLOW_PLANT_LIMITS,
     FLOW_SENSOR_CONDUCTIVITY,
     FLOW_SENSOR_HUMIDITY,
     FLOW_SENSOR_ILLUMINANCE,
@@ -186,7 +189,7 @@ class PlantHelper:
         max_humidity = DEFAULT_MAX_HUMIDITY
         min_humidity = DEFAULT_MIN_HUMIDITY
         watering = None
-        outside = config.get("outside", False)
+        outside = config.get(FLOW_OUTSIDE, False)
         entity_picture = None
         display_species = None
         data_source = DATA_SOURCE_DEFAULT
@@ -331,7 +334,7 @@ class PlantHelper:
                 ATTR_ENTITY_PICTURE: entity_picture or "",
                 OPB_DISPLAY_PID: display_species or "",
                 CONF_WATERING: final_watering,
-                "outside": config.get("outside", False),
+                ATTR_OUTSIDE: config.get(FLOW_OUTSIDE, False),
                 ATTR_LIMITS: {
                     CONF_MAX_ILLUMINANCE: config.get(
                         CONF_MAX_BRIGHTNESS,
