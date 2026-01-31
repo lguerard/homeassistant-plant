@@ -407,6 +407,11 @@ class PlantDevice(RestoreEntity):
             )
             or self.species
         )
+        self.scientific_name = self._config.data[FLOW_PLANT_INFO].get("scientific_name")
+        self.common_name = self._config.data[FLOW_PLANT_INFO].get("common_name")
+        self.category = self._config.data[FLOW_PLANT_INFO].get("category")
+        self.origin = self._config.data[FLOW_PLANT_INFO].get("origin")
+
         self._attr_unique_id = self._config.entry_id
 
         self.entity_id = async_generate_entity_id(
@@ -535,14 +540,31 @@ class PlantDevice(RestoreEntity):
         """Whether we will generate alarms based on conductivity"""
         return self._config.options.get(FLOW_CONDUCTIVITY_TRIGGER, True)
 
+    async def async_added_to_hass(self) -> None:
+        """Run when entity about to be added to hass."""
+        await super().async_added_to_hass()
+        if not self.scientific_name or self.scientific_name == "":
+            _LOGGER.debug("Refreshing OPB metadata for %s", self.name)
+            plant_helper = PlantHelper(self._hass)
+            opb_plant = await plant_helper.openplantbook_get(self.species)
+            if opb_plant:
+                self.scientific_name = opb_plant.get("scientific_name")
+                self.common_name = opb_plant.get("common_name")
+                self.category = opb_plant.get("category")
+                self.origin = opb_plant.get("origin")
+                self.async_write_ha_state()
+
     @property
     def extra_state_attributes(self) -> dict:
         """Return the device specific state attributes."""
-        if not self.plant_complete:
-            # We are not fully set up, so we just return an empty dict for now
-            return {}
         attributes = {
             ATTR_SPECIES: self.display_species,
+            f"{ATTR_SPECIES}_original": self.species,
+            "scientific_name": self.scientific_name,
+            "common_name": self.common_name,
+            "category": self.category,
+            "origin": self.origin,
+            "pid": self.species,
             f"{ATTR_MOISTURE}_status": self.moisture_status,
             f"{ATTR_TEMPERATURE}_status": self.temperature_status,
             f"{ATTR_CONDUCTIVITY}_status": self.conductivity_status,
@@ -553,7 +575,6 @@ class PlantDevice(RestoreEntity):
             ATTR_LAST_WATERED: self.last_watered,
             ATTR_SNOOZE_UNTIL: self.snooze_until,
             "last_notified": self.last_notified,
-            f"{ATTR_SPECIES}_original": self.species,
         }
 
         # Area lookup
@@ -578,9 +599,6 @@ class PlantDevice(RestoreEntity):
     @property
     def websocket_info(self) -> dict:
         """Wesocket response"""
-        if not self.plant_complete:
-            # We are not fully set up, so we just return an empty dict for now
-            return {}
 
         # Fallback logic for temperature
         temp_val = STATE_UNAVAILABLE
@@ -732,6 +750,11 @@ class PlantDevice(RestoreEntity):
             ATTR_OUTSIDE: self.outside,
             ATTR_WATERING: self.watering_days,
             "area": None,
+            "scientific_name": self.scientific_name,
+            "common_name": self.common_name,
+            "category": self.category,
+            "origin": self.origin,
+            "pid": self.species,
         }
         if self.dli and self.dli.state and self.dli.state != STATE_UNKNOWN:
             response[ATTR_DLI][ATTR_CURRENT] = float(self.dli.state)

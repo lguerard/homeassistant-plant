@@ -192,6 +192,10 @@ class PlantHelper:
         outside = config.get(FLOW_OUTSIDE, False)
         entity_picture = None
         display_species = None
+        scientific_name = None
+        common_name = None
+        category = None
+        origin = None
         data_source = DATA_SOURCE_DEFAULT
 
         # If we have image defined in the config, or a local file
@@ -287,6 +291,12 @@ class PlantHelper:
                 CONF_PLANTBOOK_MAPPING[CONF_MIN_HUMIDITY], DEFAULT_MIN_HUMIDITY
             )
             watering = opb_plant.get(CONF_PLANTBOOK_MAPPING[CONF_WATERING])
+
+            scientific_name = opb_plant.get("scientific_name")
+            common_name = opb_plant.get("common_name")
+            category = opb_plant.get("category")
+            origin = opb_plant.get("origin")
+
             _LOGGER.info("Picture: %s", entity_picture)
             if (
                 entity_picture is None
@@ -333,6 +343,10 @@ class PlantHelper:
                 ATTR_SPECIES: config.get(ATTR_SPECIES) or "",
                 ATTR_ENTITY_PICTURE: entity_picture or "",
                 OPB_DISPLAY_PID: display_species or "",
+                "scientific_name": scientific_name or "",
+                "common_name": common_name or "",
+                "category": category or "",
+                "origin": origin or "",
                 CONF_WATERING: final_watering,
                 ATTR_OUTSIDE: config.get(FLOW_OUTSIDE, False),
                 ATTR_LIMITS: {
