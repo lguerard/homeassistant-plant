@@ -459,7 +459,7 @@ class PlantDevice(RestoreEntity):
                     self.watering_days = float(self.watering_days)
             except (ValueError, TypeError, IndexError):
                 self.watering_days = 7
-        self.next_watering = None
+        self.next_watering = "0 j"
 
         self.dli = None
         self.micro_dli = None
@@ -1046,15 +1046,9 @@ class PlantDevice(RestoreEntity):
                         pass
 
                 if days <= 0:
-                    self.next_watering = "Water today"
-                elif days == 1:
-                    self.next_watering = "Tomorrow"
-                elif days < 7:
-                    self.next_watering = (
-                        datetime.now() + timedelta(days=days)
-                    ).strftime("%a")
+                    self.next_watering = "0 j"
                 else:
-                    self.next_watering = f"In {days} days"
+                    self.next_watering = f"{days} j"
 
         if not known_state:
             new_state = STATE_UNKNOWN
@@ -1161,3 +1155,4 @@ class PlantDevice(RestoreEntity):
         }
         await self._hass.services.async_call("notify", "all_phones", service_data)
         self.last_notified = datetime.now().isoformat()
+        self.async_write_ha_state()  # Ensure last_notified is saved to state
