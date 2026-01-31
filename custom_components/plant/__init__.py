@@ -34,8 +34,8 @@ from homeassistant.helpers import (
     entity_registry as er,
 )
 from homeassistant.helpers.entity import Entity, async_generate_entity_id
-from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.entity_component import EntityComponent
+from homeassistant.helpers.restore_state import RestoreEntity
 
 from . import group
 from .const import (

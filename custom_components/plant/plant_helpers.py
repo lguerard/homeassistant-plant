@@ -343,17 +343,23 @@ class PlantHelper:
                     CONF_MAX_DLI: config.get(CONF_MAX_DLI, max_dli),
                     CONF_MIN_DLI: config.get(CONF_MIN_DLI, min_dli),
                 },
-                FLOW_SENSOR_TEMPERATURE: config[ATTR_SENSORS].get(ATTR_TEMPERATURE),
-                FLOW_SENSOR_MOISTURE: config[ATTR_SENSORS].get(ATTR_MOISTURE),
-                FLOW_SENSOR_CONDUCTIVITY: config[ATTR_SENSORS].get(ATTR_CONDUCTIVITY),
-                FLOW_SENSOR_ILLUMINANCE: config[ATTR_SENSORS].get(ATTR_ILLUMINANCE)
+                FLOW_SENSOR_TEMPERATURE: config.get(FLOW_SENSOR_TEMPERATURE)
+                or config[ATTR_SENSORS].get(ATTR_TEMPERATURE),
+                FLOW_SENSOR_MOISTURE: config.get(FLOW_SENSOR_MOISTURE)
+                or config[ATTR_SENSORS].get(ATTR_MOISTURE),
+                FLOW_SENSOR_CONDUCTIVITY: config.get(FLOW_SENSOR_CONDUCTIVITY)
+                or config[ATTR_SENSORS].get(ATTR_CONDUCTIVITY),
+                FLOW_SENSOR_ILLUMINANCE: config.get(FLOW_SENSOR_ILLUMINANCE)
+                or config[ATTR_SENSORS].get(ATTR_ILLUMINANCE)
                 or config[ATTR_SENSORS].get(ATTR_BRIGHTNESS),
-                FLOW_SENSOR_HUMIDITY: config[ATTR_SENSORS].get(ATTR_HUMIDITY),
-                FLOW_SENSOR_ROOM_TEMPERATURE: config[ATTR_SENSORS].get(
-                    "room_temperature"
-                ),
-                FLOW_SENSOR_ROOM_HUMIDITY: config[ATTR_SENSORS].get("room_humidity"),
-                FLOW_WEATHER_ENTITY: config.get("weather_entity"),
+                FLOW_SENSOR_HUMIDITY: config.get(FLOW_SENSOR_HUMIDITY)
+                or config[ATTR_SENSORS].get(ATTR_HUMIDITY),
+                FLOW_SENSOR_ROOM_TEMPERATURE: config.get(FLOW_SENSOR_ROOM_TEMPERATURE)
+                or config[ATTR_SENSORS].get("room_temperature"),
+                FLOW_SENSOR_ROOM_HUMIDITY: config.get(FLOW_SENSOR_ROOM_HUMIDITY)
+                or config[ATTR_SENSORS].get("room_humidity"),
+                FLOW_WEATHER_ENTITY: config.get(FLOW_WEATHER_ENTITY)
+                or config.get("weather_entity"),
             },
         }
         _LOGGER.debug("Resulting config: %s", ret)

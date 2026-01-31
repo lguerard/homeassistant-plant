@@ -252,14 +252,23 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ):
                 return await self.async_step_select_species()
             if valid:
+                # Update with processed data from generate_configentry for missing root fields
+                plant_config = await plant_helper.generate_configentry(
+                    config=self.plant_info
+                )
+                self.plant_info[DATA_SOURCE] = plant_config[DATA_SOURCE]
+                
                 self.plant_info[ATTR_ENTITY_PICTURE] = user_input.get(
                     ATTR_ENTITY_PICTURE
                 )
                 self.plant_info[OPB_DISPLAY_PID] = user_input.get(OPB_DISPLAY_PID)
+                self.plant_info[CONF_WATERING] = user_input.get(CONF_WATERING, 7)
                 if not self.plant_info[ATTR_SPECIES]:
                     self.plant_info[ATTR_SPECIES] = self.plant_info[OPB_DISPLAY_PID]
                 user_input.pop(ATTR_ENTITY_PICTURE)
                 user_input.pop(OPB_DISPLAY_PID)
+                if CONF_WATERING in user_input:
+                    user_input.pop(CONF_WATERING)
                 if FLOW_RIGHT_PLANT in user_input:
                     user_input.pop(FLOW_RIGHT_PLANT)
                 self.plant_info[FLOW_PLANT_LIMITS] = user_input
@@ -269,11 +278,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         data_schema = {}
         plant_config = await plant_helper.generate_configentry(
-            config={
-                ATTR_NAME: self.plant_info[ATTR_NAME],
-                ATTR_SPECIES: self.plant_info[ATTR_SPECIES],
-                ATTR_SENSORS: {},
-            }
+            config=self.plant_info
         )
         extra_desc = ""
         if plant_config[FLOW_PLANT_INFO].get(OPB_DISPLAY_PID):
