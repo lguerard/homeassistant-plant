@@ -563,7 +563,9 @@ class PlantDevice(Entity):
             ATTR_ILLUMINANCE: {
                 ATTR_MAX: getattr(self.max_illuminance, "state", 100000),
                 ATTR_MIN: getattr(self.min_illuminance, "state", 0),
-                ATTR_CURRENT: getattr(self.sensor_illuminance, "state", STATE_UNAVAILABLE)
+                ATTR_CURRENT: getattr(
+                    self.sensor_illuminance, "state", STATE_UNAVAILABLE
+                )
                 if self.sensor_illuminance
                 else STATE_UNAVAILABLE,
                 ATTR_ICON: getattr(self.sensor_illuminance, "icon", "mdi:brightness-6"),
@@ -587,7 +589,9 @@ class PlantDevice(Entity):
             ATTR_CONDUCTIVITY: {
                 ATTR_MAX: getattr(self.max_conductivity, "state", 3000),
                 ATTR_MIN: getattr(self.min_conductivity, "state", 500),
-                ATTR_CURRENT: getattr(self.sensor_conductivity, "state", STATE_UNAVAILABLE)
+                ATTR_CURRENT: getattr(
+                    self.sensor_conductivity, "state", STATE_UNAVAILABLE
+                )
                 if self.sensor_conductivity
                 else STATE_UNAVAILABLE,
                 ATTR_ICON: getattr(self.sensor_conductivity, "icon", "mdi:spa-outline"),
