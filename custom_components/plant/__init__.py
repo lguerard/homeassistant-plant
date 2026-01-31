@@ -61,6 +61,7 @@ from .const import (
     ATTR_SPECIES,
     ATTR_TEMPERATURE,
     ATTR_THRESHOLDS,
+    ATTR_WATERING,
     ATTR_WEATHER_ENTITY,
     CONF_WATERING,
     DATA_SOURCE,
@@ -700,6 +701,7 @@ class PlantDevice(RestoreEntity):
             ATTR_ROOM_HUMIDITY: self.room_humidity_sensor,
             ATTR_WEATHER_ENTITY: self.weather_entity,
             ATTR_OUTSIDE: self.outside,
+            ATTR_WATERING: self.watering_days,
         }
         if self.dli.state and self.dli.state != STATE_UNKNOWN:
             response[ATTR_DLI][ATTR_CURRENT] = float(self.dli.state)
