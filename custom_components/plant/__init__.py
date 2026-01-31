@@ -688,10 +688,14 @@ class PlantDevice(RestoreEntity):
                 ATTR_MAX: getattr(self.max_dli, "state", 30) if self.dli else None,
                 ATTR_MIN: getattr(self.min_dli, "state", 2) if self.dli else None,
                 ATTR_CURRENT: STATE_UNAVAILABLE,
-                ATTR_ICON: getattr(self.dli, "icon", "mdi:counter"),
+                ATTR_ICON: getattr(self.dli, "icon", "mdi:counter")
+                if self.dli
+                else "mdi:counter",
                 ATTR_UNIT_OF_MEASUREMENT: getattr(
                     self.dli, "unit_of_measurement", "mol/d⋅m²"
-                ),
+                )
+                if self.dli
+                else "mol/d⋅m²",
                 ATTR_SENSOR: getattr(self.dli, "entity_id", None),
             },
             ATTR_NEXT_WATERING: self.next_watering,
@@ -703,7 +707,7 @@ class PlantDevice(RestoreEntity):
             ATTR_OUTSIDE: self.outside,
             ATTR_WATERING: self.watering_days,
         }
-        if self.dli.state and self.dli.state != STATE_UNKNOWN:
+        if self.dli and self.dli.state and self.dli.state != STATE_UNKNOWN:
             response[ATTR_DLI][ATTR_CURRENT] = float(self.dli.state)
 
         return response
