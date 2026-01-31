@@ -19,6 +19,10 @@ ATTR_MOL = "mol"
 ATTR_DLI = "dli"
 
 ATTR_TEMPERATURE = "temperature"
+ATTR_ROOM_TEMPERATURE = "room_temperature"
+ATTR_ROOM_HUMIDITY = "room_humidity"
+ATTR_NEXT_WATERING = "next_watering"
+ATTR_WEATHER_ENTITY = "weather_entity"
 ATTR_PROBLEM = "problem"
 ATTR_SENSORS = "sensors"
 ATTR_SENSOR = "sensor"
@@ -103,6 +107,9 @@ FLOW_SENSOR_MOISTURE = "moisture_sensor"
 FLOW_SENSOR_CONDUCTIVITY = "conductivity_sensor"
 FLOW_SENSOR_ILLUMINANCE = "illuminance_sensor"
 FLOW_SENSOR_HUMIDITY = "humidity_sensor"
+FLOW_SENSOR_ROOM_TEMPERATURE = "room_temperature_sensor"
+FLOW_SENSOR_ROOM_HUMIDITY = "room_humidity_sensor"
+FLOW_WEATHER_ENTITY = "weather_entity"
 
 FLOW_TEMP_UNIT = "temperature_unit"
 FLOW_ILLUMINANCE_TRIGGER = "illuminance_trigger"
@@ -167,6 +174,7 @@ CONF_MAX_BRIGHTNESS = "max_brightness"  # DEPRECATED. Only used for config migra
 CONF_CHECK_DAYS = "check_days"
 CONF_SPECIES = "species"
 CONF_IMAGE = "entity_picture"
+CONF_WATERING = "watering"
 
 CONF_PLANTBOOK = "openplantbook"
 CONF_PLANTBOOK_MAPPING = {
@@ -182,4 +190,5 @@ CONF_PLANTBOOK_MAPPING = {
     CONF_MAX_HUMIDITY: "max_env_humid",
     CONF_MIN_MMOL: "min_light_mmol",
     CONF_MAX_MMOL: "max_light_mmol",
+    CONF_WATERING: "watering",
 }

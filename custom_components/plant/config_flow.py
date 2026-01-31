@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import logging
 import re
-from typing import Any
 import urllib.parse
+from typing import Any
 
 import voluptuous as vol
-
 from homeassistant import config_entries, data_entry_flow
 from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.const import (
@@ -164,6 +163,25 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     ATTR_DOMAIN: DOMAIN_SENSOR,
                 }
             }
+        )
+        data_schema[FLOW_SENSOR_ROOM_TEMPERATURE] = selector(
+            {
+                ATTR_ENTITY: {
+                    ATTR_DEVICE_CLASS: SensorDeviceClass.TEMPERATURE,
+                    ATTR_DOMAIN: DOMAIN_SENSOR,
+                }
+            }
+        )
+        data_schema[FLOW_SENSOR_ROOM_HUMIDITY] = selector(
+            {
+                ATTR_ENTITY: {
+                    ATTR_DEVICE_CLASS: SensorDeviceClass.HUMIDITY,
+                    ATTR_DOMAIN: DOMAIN_SENSOR,
+                }
+            }
+        )
+        data_schema[FLOW_WEATHER_ENTITY] = selector(
+            {ATTR_ENTITY: {ATTR_DOMAIN: "weather"}}
         )
 
         return self.async_show_form(
@@ -366,6 +384,12 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ),
             )
         ] = int
+        data_schema[
+            vol.Required(
+                CONF_WATERING,
+                default=plant_config[FLOW_PLANT_INFO].get(CONF_WATERING, 7),
+            )
+        ] = int
 
         data_schema[
             vol.Optional(
@@ -517,6 +541,43 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             )
         ] = cv.boolean
 
+        data_schema[
+            vol.Optional(
+                FLOW_SENSOR_ROOM_TEMPERATURE,
+                description={"suggested_value": self.plant.room_temperature_sensor},
+            )
+        ] = selector(
+            {
+                ATTR_ENTITY: {
+                    ATTR_DEVICE_CLASS: SensorDeviceClass.TEMPERATURE,
+                    ATTR_DOMAIN: DOMAIN_SENSOR,
+                }
+            }
+        )
+        data_schema[
+            vol.Optional(
+                FLOW_SENSOR_ROOM_HUMIDITY,
+                description={"suggested_value": self.plant.room_humidity_sensor},
+            )
+        ] = selector(
+            {
+                ATTR_ENTITY: {
+                    ATTR_DEVICE_CLASS: SensorDeviceClass.HUMIDITY,
+                    ATTR_DOMAIN: DOMAIN_SENSOR,
+                }
+            }
+        )
+        data_schema[
+            vol.Optional(
+                FLOW_WEATHER_ENTITY,
+                description={"suggested_value": self.plant.weather_entity},
+            )
+        ] = selector({ATTR_ENTITY: {ATTR_DOMAIN: "weather"}})
+
+        data_schema[
+            vol.Optional(CONF_WATERING, default=int(self.plant.watering_days))
+        ] = int
+
         # data_schema[vol.Optional(CONF_CHECK_DAYS, default=self.plant.check_days)] = int
 
         return self.async_show_form(step_id="init", data_schema=vol.Schema(data_schema))
@@ -561,6 +622,19 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         new_display_species = entry.options.get(OPB_DISPLAY_PID)
         if new_display_species is not None:
             self.plant.display_species = new_display_species
+
+        self.plant.room_temperature_sensor = entry.options.get(
+            FLOW_SENSOR_ROOM_TEMPERATURE, self.plant.room_temperature_sensor
+        )
+        self.plant.room_humidity_sensor = entry.options.get(
+            FLOW_SENSOR_ROOM_HUMIDITY, self.plant.room_humidity_sensor
+        )
+        self.plant.weather_entity = entry.options.get(
+            FLOW_WEATHER_ENTITY, self.plant.weather_entity
+        )
+        self.plant.watering_days = entry.options.get(
+            CONF_WATERING, self.plant.watering_days
+        )
 
         new_species = entry.options.get(ATTR_SPECIES)
         force_new_species = entry.options.get(FLOW_FORCE_SPECIES_UPDATE)
