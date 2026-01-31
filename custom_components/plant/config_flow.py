@@ -257,7 +257,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     config=self.plant_info
                 )
                 self.plant_info[DATA_SOURCE] = plant_config[DATA_SOURCE]
-                
+
                 self.plant_info[ATTR_ENTITY_PICTURE] = user_input.get(
                     ATTR_ENTITY_PICTURE
                 )
@@ -277,9 +277,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return await self.async_step_limits_done()
 
         data_schema = {}
-        plant_config = await plant_helper.generate_configentry(
-            config=self.plant_info
-        )
+        plant_config = await plant_helper.generate_configentry(config=self.plant_info)
         extra_desc = ""
         if plant_config[FLOW_PLANT_INFO].get(OPB_DISPLAY_PID):
             # We got data from OPB.  Display a "wrong plant" switch
