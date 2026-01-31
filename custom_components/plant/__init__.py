@@ -555,7 +555,13 @@ class PlantDevice(RestoreEntity):
                 if not common_names:
                     common_names = opb_plant.get("common_name")
                 if isinstance(common_names, list):
-                    self.common_name = ", ".join(common_names)
+                    names = []
+                    for x in common_names:
+                        if isinstance(x, dict):
+                            names.append(str(x.get("name", x.get("value", list(x.values())[0] if x else ""))))
+                        else:
+                            names.append(str(x))
+                    self.common_name = ", ".join([n for n in names if n])
                 else:
                     self.common_name = common_names
 
@@ -564,10 +570,19 @@ class PlantDevice(RestoreEntity):
                 origins = opb_plant.get("origin")
                 if not origins:
                     origins = opb_plant.get("native_location")
+                if not origins:
+                    origins = opb_plant.get("native_distribution")
+                if not origins:
+                    origins = opb_plant.get("native_range")
+
                 if isinstance(origins, list):
-                    self.origin = ", ".join(origins)
-                else:
-                    self.origin = origins
+                    origin_list = []
+                    for x in origins:
+                        if isinstance(x, dict):
+                            origin_list.append(str(x.get("name", x.get("value", list(x.values())[0] if x else ""))))
+                        else:
+                            origin_list.append(str(x))
+                    self.origin = ", ".join([o for o in origin_list if o])
 
                 self.async_write_ha_state()
 

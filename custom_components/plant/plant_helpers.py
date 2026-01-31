@@ -299,7 +299,13 @@ class PlantHelper:
                 common_names = opb_plant.get("common_name")
 
             if isinstance(common_names, list):
-                common_name = ", ".join(common_names)
+                names = []
+                for x in common_names:
+                    if isinstance(x, dict):
+                        names.append(str(x.get("name", x.get("value", list(x.values())[0] if x else ""))))
+                    else:
+                        names.append(str(x))
+                common_name = ", ".join([n for n in names if n])
             else:
                 common_name = common_names
 
@@ -308,13 +314,19 @@ class PlantHelper:
             origins = opb_plant.get("origin")
             if not origins:
                 origins = opb_plant.get("native_location")
+            if not origins:
+                origins = opb_plant.get("native_distribution")
+            if not origins:
+                origins = opb_plant.get("native_range")
 
             if isinstance(origins, list):
-                origin = ", ".join(origins)
-            else:
-                origin = origins
-
-            _LOGGER.info("Picture: %s", entity_picture)
+                origin_list = []
+                for x in origins:
+                    if isinstance(x, dict):
+                        origin_list.append(str(x.get("name", x.get("value", list(x.values())[0] if x else ""))))
+                    else:
+                        origin_list.append(str(x))
+                origin = ", ".join([o for o in origin_list if o])
             if (
                 entity_picture is None
                 or entity_picture == ""
