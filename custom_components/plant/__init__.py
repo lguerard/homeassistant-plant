@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from . import group
-
 import logging
+from datetime import datetime, timedelta
 
 import voluptuous as vol
-
 from homeassistant.components import websocket_api
 from homeassistant.components.utility_meter.const import (
     DATA_TARIFF_SENSORS,
@@ -15,7 +13,6 @@ from homeassistant.components.utility_meter.const import (
 )
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
 from homeassistant.const import (
-    Platform,
     ATTR_ENTITY_PICTURE,
     ATTR_ICON,
     ATTR_NAME,
@@ -24,16 +21,22 @@ from homeassistant.const import (
     STATE_PROBLEM,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
+    Platform,
 )
 from homeassistant.core import HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import (
     config_validation as cv,
+)
+from homeassistant.helpers import (
     device_registry as dr,
+)
+from homeassistant.helpers import (
     entity_registry as er,
 )
 from homeassistant.helpers.entity import Entity, async_generate_entity_id
 from homeassistant.helpers.entity_component import EntityComponent
 
+from . import group
 from .const import (
     ATTR_CONDUCTIVITY,
     ATTR_CURRENT,
@@ -45,12 +48,16 @@ from .const import (
     ATTR_METERS,
     ATTR_MIN,
     ATTR_MOISTURE,
+    ATTR_NEXT_WATERING,
     ATTR_PLANT,
+    ATTR_ROOM_HUMIDITY,
+    ATTR_ROOM_TEMPERATURE,
     ATTR_SENSOR,
     ATTR_SENSORS,
     ATTR_SPECIES,
     ATTR_TEMPERATURE,
     ATTR_THRESHOLDS,
+    ATTR_WEATHER_ENTITY,
     DATA_SOURCE,
     DOMAIN,
     DOMAIN_PLANTBOOK,
@@ -60,7 +67,10 @@ from .const import (
     FLOW_ILLUMINANCE_TRIGGER,
     FLOW_MOISTURE_TRIGGER,
     FLOW_PLANT_INFO,
+    FLOW_SENSOR_ROOM_HUMIDITY,
+    FLOW_SENSOR_ROOM_TEMPERATURE,
     FLOW_TEMPERATURE_TRIGGER,
+    FLOW_WEATHER_ENTITY,
     OPB_DISPLAY_PID,
     READING_CONDUCTIVITY,
     READING_DLI,
@@ -374,6 +384,30 @@ class PlantDevice(Entity):
         self.sensor_illuminance = None
         self.sensor_humidity = None
 
+        self.room_temperature_sensor = self._config.options.get(
+            FLOW_SENSOR_ROOM_TEMPERATURE,
+            config.data[FLOW_PLANT_INFO].get(FLOW_SENSOR_ROOM_TEMPERATURE),
+        )
+        self.room_humidity_sensor = self._config.options.get(
+            FLOW_SENSOR_ROOM_HUMIDITY,
+            config.data[FLOW_PLANT_INFO].get(FLOW_SENSOR_ROOM_HUMIDITY),
+        )
+        self.weather_entity = self._config.options.get(
+            FLOW_WEATHER_ENTITY, config.data[FLOW_PLANT_INFO].get(FLOW_WEATHER_ENTITY)
+        )
+        self.watering_days = self._config.options.get(
+            CONF_WATERING, config.data[FLOW_PLANT_INFO].get(CONF_WATERING, 7)
+        )
+        if not isinstance(self.watering_days, (int, float)):
+            try:
+                if isinstance(self.watering_days, str):
+                    self.watering_days = float(self.watering_days.split(" ")[0])
+                else:
+                    self.watering_days = float(self.watering_days)
+            except (ValueError, TypeError, IndexError):
+                self.watering_days = 7
+        self.next_watering = None
+
         self.dli = None
         self.micro_dli = None
         self.ppfd = None
@@ -455,6 +489,7 @@ class PlantDevice(Entity):
             f"{ATTR_ILLUMINANCE}_status": self.illuminance_status,
             f"{ATTR_HUMIDITY}_status": self.humidity_status,
             f"{ATTR_DLI}_status": self.dli_status,
+            ATTR_NEXT_WATERING: self.next_watering,
             f"{ATTR_SPECIES}_original": self.species,
         }
         return attributes
@@ -466,14 +501,64 @@ class PlantDevice(Entity):
             # We are not fully set up, so we just return an empty dict for now
             return {}
 
+        # Fallback logic for temperature
+        temp_val = STATE_UNAVAILABLE
+        temp_icon = "mdi:thermometer"
+        temp_unit = "°C"
+        temp_sensor = None
+
+        if self.sensor_temperature:
+            temp_state = self._hass.states.get(self.sensor_temperature.entity_id)
+            temp_val = getattr(temp_state, "state", STATE_UNAVAILABLE)
+            temp_icon = self.sensor_temperature.icon
+            temp_unit = self.sensor_temperature.unit_of_measurement
+            temp_sensor = self.sensor_temperature.entity_id
+
+        if (
+            temp_val == STATE_UNKNOWN or temp_val == STATE_UNAVAILABLE
+        ) and self.room_temperature_sensor:
+            room_temp_state = self._hass.states.get(self.room_temperature_sensor)
+            if room_temp_state:
+                temp_val = room_temp_state.state
+                temp_icon = room_temp_state.attributes.get("icon", temp_icon)
+                temp_unit = room_temp_state.attributes.get(
+                    "unit_of_measurement", temp_unit
+                )
+                temp_sensor = self.room_temperature_sensor
+
+        # Fallback logic for humidity
+        hum_val = STATE_UNAVAILABLE
+        hum_icon = "mdi:water-percent"
+        hum_unit = "%"
+        hum_sensor = None
+
+        if self.sensor_humidity:
+            hum_state = self._hass.states.get(self.sensor_humidity.entity_id)
+            hum_val = getattr(hum_state, "state", STATE_UNAVAILABLE)
+            hum_icon = self.sensor_humidity.icon
+            hum_unit = self.sensor_humidity.unit_of_measurement
+            hum_sensor = self.sensor_humidity.entity_id
+
+        if (
+            hum_val == STATE_UNKNOWN or hum_val == STATE_UNAVAILABLE
+        ) and self.room_humidity_sensor:
+            room_hum_state = self._hass.states.get(self.room_humidity_sensor)
+            if room_hum_state:
+                hum_val = room_hum_state.state
+                hum_icon = room_hum_state.attributes.get("icon", hum_icon)
+                hum_unit = room_hum_state.attributes.get(
+                    "unit_of_measurement", hum_unit
+                )
+                hum_sensor = self.room_humidity_sensor
+
         response = {
             ATTR_TEMPERATURE: {
                 ATTR_MAX: self.max_temperature.state,
                 ATTR_MIN: self.min_temperature.state,
-                ATTR_CURRENT: self.sensor_temperature.state or STATE_UNAVAILABLE,
-                ATTR_ICON: self.sensor_temperature.icon,
-                ATTR_UNIT_OF_MEASUREMENT: self.sensor_temperature.unit_of_measurement,
-                ATTR_SENSOR: self.sensor_temperature.entity_id,
+                ATTR_CURRENT: temp_val,
+                ATTR_ICON: temp_icon,
+                ATTR_UNIT_OF_MEASUREMENT: temp_unit,
+                ATTR_SENSOR: temp_sensor,
             },
             ATTR_ILLUMINANCE: {
                 ATTR_MAX: self.max_illuminance.state,
@@ -502,10 +587,10 @@ class PlantDevice(Entity):
             ATTR_HUMIDITY: {
                 ATTR_MAX: self.max_humidity.state,
                 ATTR_MIN: self.min_humidity.state,
-                ATTR_CURRENT: self.sensor_humidity.state or STATE_UNAVAILABLE,
-                ATTR_ICON: self.sensor_humidity.icon,
-                ATTR_UNIT_OF_MEASUREMENT: self.sensor_humidity.unit_of_measurement,
-                ATTR_SENSOR: self.sensor_humidity.entity_id,
+                ATTR_CURRENT: hum_val,
+                ATTR_ICON: hum_icon,
+                ATTR_UNIT_OF_MEASUREMENT: hum_unit,
+                ATTR_SENSOR: hum_sensor,
             },
             ATTR_DLI: {
                 ATTR_MAX: self.max_dli.state,
@@ -515,6 +600,10 @@ class PlantDevice(Entity):
                 ATTR_UNIT_OF_MEASUREMENT: self.dli.unit_of_measurement,
                 ATTR_SENSOR: self.dli.entity_id,
             },
+            ATTR_NEXT_WATERING: self.next_watering,
+            ATTR_ROOM_TEMPERATURE: self.room_temperature_sensor,
+            ATTR_ROOM_HUMIDITY: self.room_humidity_sensor,
+            ATTR_WEATHER_ENTITY: self.weather_entity,
         }
         if self.dli.state and self.dli.state != STATE_UNKNOWN:
             response[ATTR_DLI][ATTR_CURRENT] = float(self.dli.state)
@@ -632,6 +721,8 @@ class PlantDevice(Entity):
 
         new_state = STATE_OK
         known_state = False
+        temperature = None
+        humidity = None
 
         if self.sensor_moisture is not None:
             moisture = getattr(
@@ -675,42 +766,76 @@ class PlantDevice(Entity):
                 else:
                     self.conductivity_status = STATE_OK
 
-        if self.sensor_temperature is not None:
-            temperature = getattr(
-                self._hass.states.get(self.sensor_temperature.entity_id), "state", None
-            )
+        if self.sensor_temperature is not None or self.room_temperature_sensor:
+            temperature_state = None
+            if self.sensor_temperature:
+                temperature_state = self._hass.states.get(
+                    self.sensor_temperature.entity_id
+                )
+            temperature = getattr(temperature_state, "state", None)
+
+            if (
+                temperature is None
+                or temperature == STATE_UNKNOWN
+                or temperature == STATE_UNAVAILABLE
+            ):
+                if self.room_temperature_sensor:
+                    temperature_state = self._hass.states.get(
+                        self.room_temperature_sensor
+                    )
+                    temperature = getattr(temperature_state, "state", None)
+
             if (
                 temperature is not None
                 and temperature != STATE_UNKNOWN
                 and temperature != STATE_UNAVAILABLE
             ):
                 known_state = True
-                if float(temperature) < float(self.min_temperature.state):
+                if self.min_temperature and float(temperature) < float(
+                    self.min_temperature.state
+                ):
                     self.temperature_status = STATE_LOW
                     if self.temperature_trigger:
                         new_state = STATE_PROBLEM
-                elif float(temperature) > float(self.max_temperature.state):
+                elif self.max_temperature and float(temperature) > float(
+                    self.max_temperature.state
+                ):
                     self.temperature_status = STATE_HIGH
                     if self.temperature_trigger:
                         new_state = STATE_PROBLEM
                 else:
                     self.temperature_status = STATE_OK
 
-        if self.sensor_humidity is not None:
-            humidity = getattr(
-                self._hass.states.get(self.sensor_humidity.entity_id), "state", None
-            )
+        if self.sensor_humidity is not None or self.room_humidity_sensor:
+            humidity_state = None
+            if self.sensor_humidity:
+                humidity_state = self._hass.states.get(self.sensor_humidity.entity_id)
+            humidity = getattr(humidity_state, "state", None)
+
+            if (
+                humidity is None
+                or humidity == STATE_UNKNOWN
+                or humidity == STATE_UNAVAILABLE
+            ):
+                if self.room_humidity_sensor:
+                    humidity_state = self._hass.states.get(self.room_humidity_sensor)
+                    humidity = getattr(humidity_state, "state", None)
+
             if (
                 humidity is not None
                 and humidity != STATE_UNKNOWN
                 and humidity != STATE_UNAVAILABLE
             ):
                 known_state = True
-                if float(humidity) < float(self.min_humidity.state):
+                if self.min_humidity and float(humidity) < float(
+                    self.min_humidity.state
+                ):
                     self.humidity_status = STATE_LOW
                     if self.humidity_trigger:
                         new_state = STATE_PROBLEM
-                elif float(humidity) > float(self.max_humidity.state):
+                elif self.max_humidity and float(humidity) > float(
+                    self.max_humidity.state
+                ):
                     self.humidity_status = STATE_HIGH
                     if self.humidity_trigger:
                         new_state = STATE_PROBLEM
@@ -759,6 +884,68 @@ class PlantDevice(Entity):
                     new_state = STATE_PROBLEM
             else:
                 self.dli_status = STATE_OK
+
+        # Calculate Next Watering
+        if self.sensor_moisture is not None:
+            moisture_state = self._hass.states.get(self.sensor_moisture.entity_id)
+            if (
+                moisture_state
+                and moisture_state.state != STATE_UNKNOWN
+                and moisture_state.state != STATE_UNAVAILABLE
+            ):
+                current_moisture = float(moisture_state.state)
+                min_moisture = float(self.min_moisture.state)
+                max_moisture = float(self.max_moisture.state)
+
+                # Default loss rate: assumes self.watering_days to go from max to min
+                daily_loss = (max_moisture - min_moisture) / (self.watering_days or 7)
+                if daily_loss <= 0:
+                    daily_loss = 5
+
+                adj = 1.0
+                # Use temperature if available (set above in the health check)
+                try:
+                    temp = float(temperature)
+                except (ValueError, TypeError, NameError):
+                    temp = 22
+                adj *= 1 + (temp - 22) * 0.05
+
+                # Use humidity if available
+                try:
+                    hum = float(humidity)
+                except (ValueError, TypeError, NameError):
+                    hum = 50
+                adj *= 1 - (hum - 50) * 0.004
+
+                # Weather info
+                if self.weather_entity:
+                    weather_state = self._hass.states.get(self.weather_entity)
+                    if weather_state:
+                        forecast = weather_state.attributes.get("forecast", [])
+                        if forecast:
+                            rainy = any(
+                                f.get("condition")
+                                in ("rainy", "pouring", "hail", "snowy")
+                                or f.get("precipitation", 0) > 2
+                                for f in forecast[:2]
+                            )
+                            if rainy:
+                                adj *= 0.5
+
+                adj = max(0.1, adj)
+                actual_loss = daily_loss * adj
+                days = int((current_moisture - min_moisture) / actual_loss)
+
+                if days <= 0:
+                    self.next_watering = "Water today"
+                elif days == 1:
+                    self.next_watering = "Tomorrow"
+                elif days < 7:
+                    self.next_watering = (
+                        datetime.now() + timedelta(days=days)
+                    ).strftime("%a")
+                else:
+                    self.next_watering = f"In {days} days"
 
         if not known_state:
             new_state = STATE_UNKNOWN
