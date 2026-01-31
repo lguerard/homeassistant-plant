@@ -294,9 +294,25 @@ class PlantHelper:
             watering = opb_plant.get(CONF_PLANTBOOK_MAPPING[CONF_WATERING])
 
             scientific_name = opb_plant.get("scientific_name")
-            common_name = opb_plant.get("common_name")
+            common_names = opb_plant.get("common_names")
+            if not common_names:
+                common_names = opb_plant.get("common_name")
+
+            if isinstance(common_names, list):
+                common_name = ", ".join(common_names)
+            else:
+                common_name = common_names
+
             category = opb_plant.get("category")
-            origin = opb_plant.get("origin")
+
+            origins = opb_plant.get("origin")
+            if not origins:
+                origins = opb_plant.get("native_location")
+
+            if isinstance(origins, list):
+                origin = ", ".join(origins)
+            else:
+                origin = origins
 
             _LOGGER.info("Picture: %s", entity_picture)
             if (

@@ -550,9 +550,25 @@ class PlantDevice(RestoreEntity):
             opb_plant = await plant_helper.openplantbook_get(self.species)
             if opb_plant:
                 self.scientific_name = opb_plant.get("scientific_name")
-                self.common_name = opb_plant.get("common_name")
+
+                common_names = opb_plant.get("common_names")
+                if not common_names:
+                    common_names = opb_plant.get("common_name")
+                if isinstance(common_names, list):
+                    self.common_name = ", ".join(common_names)
+                else:
+                    self.common_name = common_names
+
                 self.category = opb_plant.get("category")
-                self.origin = opb_plant.get("origin")
+
+                origins = opb_plant.get("origin")
+                if not origins:
+                    origins = opb_plant.get("native_location")
+                if isinstance(origins, list):
+                    self.origin = ", ".join(origins)
+                else:
+                    self.origin = origins
+
                 self.async_write_ha_state()
 
     @property
