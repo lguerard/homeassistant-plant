@@ -553,52 +553,66 @@ class PlantDevice(Entity):
 
         response = {
             ATTR_TEMPERATURE: {
-                ATTR_MAX: self.max_temperature.state,
-                ATTR_MIN: self.min_temperature.state,
+                ATTR_MAX: getattr(self.max_temperature, "state", 40),
+                ATTR_MIN: getattr(self.min_temperature, "state", 10),
                 ATTR_CURRENT: temp_val,
                 ATTR_ICON: temp_icon,
                 ATTR_UNIT_OF_MEASUREMENT: temp_unit,
                 ATTR_SENSOR: temp_sensor,
             },
             ATTR_ILLUMINANCE: {
-                ATTR_MAX: self.max_illuminance.state,
-                ATTR_MIN: self.min_illuminance.state,
-                ATTR_CURRENT: self.sensor_illuminance.state or STATE_UNAVAILABLE,
-                ATTR_ICON: self.sensor_illuminance.icon,
-                ATTR_UNIT_OF_MEASUREMENT: self.sensor_illuminance.unit_of_measurement,
-                ATTR_SENSOR: self.sensor_illuminance.entity_id,
+                ATTR_MAX: getattr(self.max_illuminance, "state", 100000),
+                ATTR_MIN: getattr(self.min_illuminance, "state", 0),
+                ATTR_CURRENT: getattr(self.sensor_illuminance, "state", STATE_UNAVAILABLE)
+                if self.sensor_illuminance
+                else STATE_UNAVAILABLE,
+                ATTR_ICON: getattr(self.sensor_illuminance, "icon", "mdi:brightness-6"),
+                ATTR_UNIT_OF_MEASUREMENT: getattr(
+                    self.sensor_illuminance, "unit_of_measurement", "lx"
+                ),
+                ATTR_SENSOR: getattr(self.sensor_illuminance, "entity_id", None),
             },
             ATTR_MOISTURE: {
-                ATTR_MAX: self.max_moisture.state,
-                ATTR_MIN: self.min_moisture.state,
-                ATTR_CURRENT: self.sensor_moisture.state or STATE_UNAVAILABLE,
-                ATTR_ICON: self.sensor_moisture.icon,
-                ATTR_UNIT_OF_MEASUREMENT: self.sensor_moisture.unit_of_measurement,
-                ATTR_SENSOR: self.sensor_moisture.entity_id,
+                ATTR_MAX: getattr(self.max_moisture, "state", 60),
+                ATTR_MIN: getattr(self.min_moisture, "state", 20),
+                ATTR_CURRENT: getattr(self.sensor_moisture, "state", STATE_UNAVAILABLE)
+                if self.sensor_moisture
+                else STATE_UNAVAILABLE,
+                ATTR_ICON: getattr(self.sensor_moisture, "icon", "mdi:water"),
+                ATTR_UNIT_OF_MEASUREMENT: getattr(
+                    self.sensor_moisture, "unit_of_measurement", "%"
+                ),
+                ATTR_SENSOR: getattr(self.sensor_moisture, "entity_id", None),
             },
             ATTR_CONDUCTIVITY: {
-                ATTR_MAX: self.max_conductivity.state,
-                ATTR_MIN: self.min_conductivity.state,
-                ATTR_CURRENT: self.sensor_conductivity.state or STATE_UNAVAILABLE,
-                ATTR_ICON: self.sensor_conductivity.icon,
-                ATTR_UNIT_OF_MEASUREMENT: self.sensor_conductivity.unit_of_measurement,
-                ATTR_SENSOR: self.sensor_conductivity.entity_id,
+                ATTR_MAX: getattr(self.max_conductivity, "state", 3000),
+                ATTR_MIN: getattr(self.min_conductivity, "state", 500),
+                ATTR_CURRENT: getattr(self.sensor_conductivity, "state", STATE_UNAVAILABLE)
+                if self.sensor_conductivity
+                else STATE_UNAVAILABLE,
+                ATTR_ICON: getattr(self.sensor_conductivity, "icon", "mdi:spa-outline"),
+                ATTR_UNIT_OF_MEASUREMENT: getattr(
+                    self.sensor_conductivity, "unit_of_measurement", "μS/cm"
+                ),
+                ATTR_SENSOR: getattr(self.sensor_conductivity, "entity_id", None),
             },
             ATTR_HUMIDITY: {
-                ATTR_MAX: self.max_humidity.state,
-                ATTR_MIN: self.min_humidity.state,
+                ATTR_MAX: getattr(self.max_humidity, "state", 60),
+                ATTR_MIN: getattr(self.min_humidity, "state", 20),
                 ATTR_CURRENT: hum_val,
                 ATTR_ICON: hum_icon,
                 ATTR_UNIT_OF_MEASUREMENT: hum_unit,
                 ATTR_SENSOR: hum_sensor,
             },
             ATTR_DLI: {
-                ATTR_MAX: self.max_dli.state,
-                ATTR_MIN: self.min_dli.state,
+                ATTR_MAX: getattr(self.max_dli, "state", 30),
+                ATTR_MIN: getattr(self.min_dli, "state", 2),
                 ATTR_CURRENT: STATE_UNAVAILABLE,
-                ATTR_ICON: self.dli.icon,
-                ATTR_UNIT_OF_MEASUREMENT: self.dli.unit_of_measurement,
-                ATTR_SENSOR: self.dli.entity_id,
+                ATTR_ICON: getattr(self.dli, "icon", "mdi:counter"),
+                ATTR_UNIT_OF_MEASUREMENT: getattr(
+                    self.dli, "unit_of_measurement", "mol/d⋅m²"
+                ),
+                ATTR_SENSOR: getattr(self.dli, "entity_id", None),
             },
             ATTR_NEXT_WATERING: self.next_watering,
             ATTR_ROOM_TEMPERATURE: self.room_temperature_sensor,
