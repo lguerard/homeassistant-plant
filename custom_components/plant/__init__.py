@@ -1006,6 +1006,17 @@ class PlantDevice(RestoreEntity):
                 actual_loss = daily_loss * adj
                 days = int((current_moisture - min_moisture) / actual_loss)
 
+                # If recently watered, ensure we don't show "Water today" immediately
+                # even if sensors haven't updated yet
+                if self.last_watered:
+                    try:
+                        last_watered_dt = datetime.fromisoformat(self.last_watered)
+                        if datetime.now() - last_watered_dt < timedelta(hours=12):
+                            if days <= 0:
+                                days = self.watering_days or 7
+                    except ValueError:
+                        pass
+
                 if days <= 0:
                     self.next_watering = "Water today"
                 elif days == 1:
