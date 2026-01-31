@@ -58,6 +58,7 @@ from .const import (
     ATTR_TEMPERATURE,
     ATTR_THRESHOLDS,
     ATTR_WEATHER_ENTITY,
+    CONF_WATERING,
     DATA_SOURCE,
     DOMAIN,
     DOMAIN_PLANTBOOK,
@@ -81,7 +82,6 @@ from .const import (
     SERVICE_REPLACE_SENSOR,
     STATE_HIGH,
     STATE_LOW,
-    CONF_WATERING,
 )
 from .plant_helpers import PlantHelper
 

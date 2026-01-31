@@ -12,7 +12,10 @@
           "moisture_sensor": "Capteur d'humidité du sol",
           "conductivity_sensor": "Capteur de conductivité",
           "illuminance_sensor": "Capteur de luminosité",
-          "humidity_sensor": "Capteur d'humidité de l'air"
+          "humidity_sensor": "Capteur d'humidité de l'air",
+          "room_temperature_sensor": "Capteur de température ambiante (fallback)",
+          "room_humidity_sensor": "Capteur d'humidité ambiante (fallback)",
+          "weather_entity": "Entité météo"
         },
         "data_description": {
           "species": "Sera utilisé pour la recherche dans OpenPlantbook"
@@ -46,6 +49,7 @@
           "min_conductivity": "Conductivité minimale (uS/cm)",
           "max_humidity": "Humidité de l'air maximale (%)",
           "min_humidity": "Humidité de l'air minimale (%)",
+          "watering": "Fréquence d'arrosage (jours)",
           "entity_picture": "URL de l'image"
         }
       }
@@ -66,6 +70,10 @@
           "conductivity_sensor": "Capteur de conductivité",
           "illuminance_sensor": "Capteur de luminosité",
           "humidity_sensor": "Capteur d'humidité de l'air",
+          "room_temperature_sensor": "Capteur de température ambiante (fallback)",
+          "room_humidity_sensor": "Capteur d'humidité ambiante (fallback)",
+          "weather_entity": "Entité météo",
+          "watering": "Fréquence d'arrosage (jours)",
           "entity_picture": "URL de l'image. Sera automatiquement mise à jour si l'espèce est trouvée dans OpenPlantbook",
           "illuminance_trigger": "Utiliser la luminosité comme déclencheur de problème",
           "dli_trigger": "Utiliser l'intégrale quotidienne de lumière (DLI) comme déclencheur de problème",
