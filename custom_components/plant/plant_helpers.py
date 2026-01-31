@@ -347,6 +347,8 @@ class PlantHelper:
                     else:
                         origin_list.append(str(x))
                 origin = ", ".join([o for o in origin_list if o])
+            else:
+                origin = origins
             if (
                 entity_picture is None
                 or entity_picture == ""

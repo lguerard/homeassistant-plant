@@ -618,31 +618,6 @@ class PlantDevice(RestoreEntity):
                     self.origin = origins
 
                 self.async_write_ha_state()
-                    origins = opb_plant.get("native_location")
-                if not origins:
-                    origins = opb_plant.get("native_distribution")
-                if not origins:
-                    origins = opb_plant.get("native_range")
-
-                if isinstance(origins, list):
-                    origin_list = []
-                    for x in origins:
-                        if isinstance(x, dict):
-                            origin_list.append(
-                                str(
-                                    x.get(
-                                        "name",
-                                        x.get(
-                                            "value", list(x.values())[0] if x else ""
-                                        ),
-                                    )
-                                )
-                            )
-                        else:
-                            origin_list.append(str(x))
-                    self.origin = ", ".join([o for o in origin_list if o])
-
-                self.async_write_ha_state()
 
     @property
     def extra_state_attributes(self) -> dict:
