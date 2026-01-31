@@ -5,9 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from async_timeout import timeout
 import voluptuous as vol
-
+from async_timeout import timeout
 from homeassistant.components.persistent_notification import (
     create as create_notification,
 )
@@ -65,9 +64,13 @@ from .const import (
     FLOW_PLANT_IMAGE,
     FLOW_PLANT_INFO,
     FLOW_SENSOR_CONDUCTIVITY,
+    FLOW_SENSOR_HUMIDITY,
     FLOW_SENSOR_ILLUMINANCE,
     FLOW_SENSOR_MOISTURE,
+    FLOW_SENSOR_ROOM_HUMIDITY,
+    FLOW_SENSOR_ROOM_TEMPERATURE,
     FLOW_SENSOR_TEMPERATURE,
+    FLOW_WEATHER_ENTITY,
     OPB_DISPLAY_PID,
     OPB_GET,
     OPB_SEARCH,
@@ -181,6 +184,7 @@ class PlantHelper:
         min_dli = DEFAULT_MIN_DLI
         max_humidity = DEFAULT_MAX_HUMIDITY
         min_humidity = DEFAULT_MIN_HUMIDITY
+        watering = None
         entity_picture = None
         display_species = None
         data_source = DATA_SOURCE_DEFAULT
@@ -277,6 +281,7 @@ class PlantHelper:
             min_humidity = opb_plant.get(
                 CONF_PLANTBOOK_MAPPING[CONF_MIN_HUMIDITY], DEFAULT_MIN_HUMIDITY
             )
+            watering = opb_plant.get(CONF_PLANTBOOK_MAPPING[CONF_WATERING])
             _LOGGER.info("Picture: %s", entity_picture)
             if (
                 entity_picture is None
@@ -312,6 +317,7 @@ class PlantHelper:
                 ATTR_SPECIES: config.get(ATTR_SPECIES) or "",
                 ATTR_ENTITY_PICTURE: entity_picture or "",
                 OPB_DISPLAY_PID: display_species or "",
+                CONF_WATERING: config.get(CONF_WATERING, watering),
                 ATTR_LIMITS: {
                     CONF_MAX_ILLUMINANCE: config.get(
                         CONF_MAX_BRIGHTNESS,
@@ -341,6 +347,12 @@ class PlantHelper:
                 FLOW_SENSOR_CONDUCTIVITY: config[ATTR_SENSORS].get(ATTR_CONDUCTIVITY),
                 FLOW_SENSOR_ILLUMINANCE: config[ATTR_SENSORS].get(ATTR_ILLUMINANCE)
                 or config[ATTR_SENSORS].get(ATTR_BRIGHTNESS),
+                FLOW_SENSOR_HUMIDITY: config[ATTR_SENSORS].get(ATTR_HUMIDITY),
+                FLOW_SENSOR_ROOM_TEMPERATURE: config[ATTR_SENSORS].get(
+                    "room_temperature"
+                ),
+                FLOW_SENSOR_ROOM_HUMIDITY: config[ATTR_SENSORS].get("room_humidity"),
+                FLOW_WEATHER_ENTITY: config.get("weather_entity"),
             },
         }
         _LOGGER.debug("Resulting config: %s", ret)
