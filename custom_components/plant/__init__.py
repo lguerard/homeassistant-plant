@@ -34,6 +34,7 @@ from homeassistant.helpers import (
     entity_registry as er,
 )
 from homeassistant.helpers.entity import Entity, async_generate_entity_id
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.entity_component import EntityComponent
 
 from . import group
@@ -43,6 +44,7 @@ from .const import (
     ATTR_DLI,
     ATTR_HUMIDITY,
     ATTR_ILLUMINANCE,
+    ATTR_LAST_WATERED,
     ATTR_LIMITS,
     ATTR_MAX,
     ATTR_METERS,
@@ -54,6 +56,7 @@ from .const import (
     ATTR_ROOM_TEMPERATURE,
     ATTR_SENSOR,
     ATTR_SENSORS,
+    ATTR_SNOOZE_UNTIL,
     ATTR_SPECIES,
     ATTR_TEMPERATURE,
     ATTR_THRESHOLDS,
@@ -80,6 +83,8 @@ from .const import (
     READING_MOISTURE,
     READING_TEMPERATURE,
     SERVICE_REPLACE_SENSOR,
+    SERVICE_SNOOZE,
+    SERVICE_WATERED,
     STATE_HIGH,
     STATE_LOW,
 )
@@ -256,6 +261,44 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
                     limit=30,
                 )
 
+    async def watered(call: ServiceCall) -> None:
+        """Service call to mark a plant as watered."""
+        entity_ids = call.data.get("entity_id")
+        for entry_id in hass.data[DOMAIN]:
+            plant_obj = hass.data[DOMAIN][entry_id].get(ATTR_PLANT)
+            if plant_obj and plant_obj.entity_id in entity_ids:
+                plant_obj.async_watered()
+
+    async def snooze(call: ServiceCall) -> None:
+        """Service call to snooze watering notification."""
+        entity_ids = call.data.get("entity_id")
+        for entry_id in hass.data[DOMAIN]:
+            plant_obj = hass.data[DOMAIN][entry_id].get(ATTR_PLANT)
+            if plant_obj and plant_obj.entity_id in entity_ids:
+                plant_obj.async_snooze()
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_WATERED, watered, schema=cv.make_entity_service_schema({})
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_SNOOZE, snooze, schema=cv.make_entity_service_schema({})
+    )
+
+    async def handle_notification_action(event) -> None:
+        """Handle actionable notification events."""
+        action = event.data.get("action")
+        entity_id = event.data.get("entity_id")
+        if action == "PLANT_WATERED":
+            await hass.services.async_call(
+                DOMAIN, SERVICE_WATERED, {"entity_id": entity_id}
+            )
+        elif action == "PLANT_SNOOZE":
+            await hass.services.async_call(
+                DOMAIN, SERVICE_SNOOZE, {"entity_id": entity_id}
+            )
+
+    hass.bus.async_listen("mobile_app_notification_action", handle_notification_action)
+
     return True
 
 
@@ -328,7 +371,7 @@ def ws_get_info(
     return
 
 
-class PlantDevice(Entity):
+class PlantDevice(RestoreEntity):
     """Base device for plants"""
 
     def __init__(self, hass: HomeAssistant, config: ConfigEntry) -> None:
@@ -338,6 +381,9 @@ class PlantDevice(Entity):
         self._attr_name = config.data[FLOW_PLANT_INFO][ATTR_NAME]
         self._config_entries = []
         self._data_source = config.data[FLOW_PLANT_INFO].get(DATA_SOURCE)
+        self.last_watered = None
+        self.snooze_until = None
+        self.last_notified = None
 
         # Get entity_picture from options or from initial config
         self._attr_entity_picture = self._config.options.get(
@@ -491,6 +537,9 @@ class PlantDevice(Entity):
             f"{ATTR_HUMIDITY}_status": self.humidity_status,
             f"{ATTR_DLI}_status": self.dli_status,
             ATTR_NEXT_WATERING: self.next_watering,
+            ATTR_LAST_WATERED: self.last_watered,
+            ATTR_SNOOZE_UNTIL: self.snooze_until,
+            "last_notified": self.last_notified,
             f"{ATTR_SPECIES}_original": self.species,
         }
         return attributes
@@ -620,6 +669,8 @@ class PlantDevice(Entity):
                 ATTR_SENSOR: getattr(self.dli, "entity_id", None),
             },
             ATTR_NEXT_WATERING: self.next_watering,
+            ATTR_LAST_WATERED: self.last_watered,
+            ATTR_SNOOZE_UNTIL: self.snooze_until,
             ATTR_ROOM_TEMPERATURE: self.room_temperature_sensor,
             ATTR_ROOM_HUMIDITY: self.room_humidity_sensor,
             ATTR_WEATHER_ENTITY: self.weather_entity,
@@ -970,6 +1021,7 @@ class PlantDevice(Entity):
             new_state = STATE_UNKNOWN
 
         self._attr_state = new_state
+        self._check_and_notify()
         self.update_registry()
 
     @property
@@ -997,3 +1049,76 @@ class PlantDevice(Entity):
 
     async def async_added_to_hass(self) -> None:
         self.update_registry()
+        state = await self.async_get_last_state()
+        if state:
+            self.last_watered = state.attributes.get(ATTR_LAST_WATERED)
+            self.snooze_until = state.attributes.get(ATTR_SNOOZE_UNTIL)
+            self.last_notified = state.attributes.get("last_notified")
+
+    @callback
+    def async_watered(self) -> None:
+        """Mark the plant as watered."""
+        self.last_watered = datetime.now().isoformat()
+        self.snooze_until = None
+        self.async_write_ha_state()
+
+    @callback
+    def async_snooze(self) -> None:
+        """Snooze the watering notification."""
+        self.snooze_until = (datetime.now() + timedelta(hours=1)).isoformat()
+        self.async_write_ha_state()
+
+    def _check_and_notify(self) -> None:
+        """Check if we should send a notification."""
+        if self.moisture_status != STATE_LOW or not self.moisture_trigger:
+            return
+
+        now = datetime.now()
+        if self.snooze_until:
+            try:
+                snooze_dt = datetime.fromisoformat(self.snooze_until)
+                if now < snooze_dt:
+                    return
+            except ValueError:
+                pass
+
+        if self.last_notified:
+            try:
+                last_dt = datetime.fromisoformat(self.last_notified)
+                if now < last_dt + timedelta(hours=4):
+                    return
+            except ValueError:
+                pass
+
+        self._hass.async_create_task(self._async_send_notification())
+
+    async def _async_send_notification(self) -> None:
+        """Send a notification to all_phones."""
+        if not self._hass.services.has_service("notify", "all_phones"):
+            return
+
+        moisture = "???"
+        if self.sensor_moisture:
+            moisture = self.sensor_moisture.state
+
+        service_data = {
+            "title": f"Arrosage nécessaire : {self.name}",
+            "message": f"Votre {self.display_species} a soif ! (Humidité : {moisture}%)",
+            "data": {
+                "tag": f"plant_watering_{self.entity_id}",
+                "actions": [
+                    {
+                        "action": "PLANT_WATERED",
+                        "title": "Arrosé",
+                        "entity_id": self.entity_id,
+                    },
+                    {
+                        "action": "PLANT_SNOOZE",
+                        "title": "Snooze 1h",
+                        "entity_id": self.entity_id,
+                    },
+                ],
+            },
+        }
+        await self._hass.services.async_call("notify", "all_phones", service_data)
+        self.last_notified = datetime.now().isoformat()

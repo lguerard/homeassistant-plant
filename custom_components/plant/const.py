@@ -22,6 +22,8 @@ ATTR_TEMPERATURE = "temperature"
 ATTR_ROOM_TEMPERATURE = "room_temperature"
 ATTR_ROOM_HUMIDITY = "room_humidity"
 ATTR_NEXT_WATERING = "next_watering"
+ATTR_LAST_WATERED = "last_watered"
+ATTR_SNOOZE_UNTIL = "snooze_until"
 ATTR_WEATHER_ENTITY = "weather_entity"
 ATTR_PROBLEM = "problem"
 ATTR_SENSORS = "sensors"
@@ -143,6 +145,8 @@ DEFAULT_LUX_TO_PPFD = 0.0185
 
 
 SERVICE_REPLACE_SENSOR = "replace_sensor"
+SERVICE_WATERED = "watered"
+SERVICE_SNOOZE = "snooze"
 
 STATE_LOW = "Low"
 STATE_HIGH = "High"
