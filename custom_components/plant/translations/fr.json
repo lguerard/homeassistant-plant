@@ -86,6 +86,9 @@
           "moisture_trigger": "Utiliser l'humidité du sol comme déclencheur de problème",
           "temperature_trigger": "Utiliser la température comme déclencheur de problème",
           "outside": "La plante est à l'extérieur"
+        },
+        "data_description": {
+          "notification_service": "Service à utiliser pour les notifications (ex: notify.mobile_app_iphone)"
         }
       }
     }

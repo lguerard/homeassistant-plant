@@ -205,7 +205,9 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data_schema[
             vol.Optional(
                 FLOW_NOTIFICATION_SERVICE,
-                default=self.plant_info.get(FLOW_NOTIFICATION_SERVICE, ""),
+                description={
+                    "suggested_value": self.plant_info.get(FLOW_NOTIFICATION_SERVICE, "")
+                },
             )
         ] = selector(
             {
