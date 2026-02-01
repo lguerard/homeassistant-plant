@@ -98,7 +98,7 @@ from .const import (
 from .plant_helpers import PlantHelper
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = [Platform.NUMBER, Platform.SENSOR]
+SERVICE_REMOVE_PLANT = "remove_plant"
 
 # Use this during testing to generate some dummy-sensors
 # to provide random readings for temperature, moisture etc.
@@ -309,6 +309,43 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
         )
         hass.services.async_register(
             DOMAIN, SERVICE_SNOOZE, snooze, schema=cv.make_entity_service_schema({})
+        )
+
+        async def remove_plant(call: ServiceCall) -> None:
+            """Service call to remove a plant completely."""
+            entity_ids = call.data.get("entity_id")
+            if not entity_ids:
+                return
+            if isinstance(entity_ids, str):
+                entity_ids = [entity_ids]
+
+            for entity_id in entity_ids:
+                _LOGGER.info("Attempting to remove plant entity: %s", entity_id)
+                # Find the config entry for this plant
+                target_entry = None
+                for entry_id in hass.data[DOMAIN]:
+                    if not isinstance(hass.data[DOMAIN][entry_id], dict):
+                        continue
+                    plant_obj = hass.data[DOMAIN][entry_id].get(ATTR_PLANT)
+                    if plant_obj and plant_obj.entity_id == entity_id:
+                        target_entry = hass.config_entries.async_get_entry(entry_id)
+                        break
+
+                if target_entry:
+                    _LOGGER.info(
+                        "Removing plant %s (ConfigEntry: %s)",
+                        entity_id,
+                        target_entry.entry_id,
+                    )
+                    await hass.config_entries.async_remove(target_entry.entry_id)
+                else:
+                    _LOGGER.warning("Could not find config entry for plant: %s", entity_id)
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_REMOVE_PLANT,
+            remove_plant,
+            schema=cv.make_entity_service_schema({}),
         )
 
     async def handle_notification_action(event) -> None:
@@ -1193,8 +1230,7 @@ class PlantDevice(RestoreEntity):
                 forecast = weather_state.attributes.get("forecast", [])
                 if forecast:
                     rainy = any(
-                        f.get("condition")
-                        in ("rainy", "pouring", "hail", "snowy")
+                        f.get("condition") in ("rainy", "pouring", "hail", "snowy")
                         or f.get("precipitation", 0) > 2
                         for f in forecast[:2]
                     )

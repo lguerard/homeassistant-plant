@@ -88,5 +88,17 @@
         }
       }
     }
+  },
+  "services": {
+    "remove_plant": {
+      "name": "Supprimer la plante",
+      "description": "Supprime Complètement une plante et toutes ses données associées de Home Assistant.",
+      "fields": {
+        "entity_id": {
+          "name": "Entité",
+          "description": "L'entité plante à supprimer"
+        }
+      }
+    }
   }
 }

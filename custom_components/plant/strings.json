@@ -123,6 +123,16 @@
           "description": "The plant entity to snooze"
         }
       }
+    },
+    "remove_plant": {
+      "name": "Remove plant",
+      "description": "Completely remove a plant and all its associated data from Home Assistant.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity",
+          "description": "The plant entity to remove"
+        }
+      }
     }
   }
 }
