@@ -194,7 +194,23 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         data_schema[FLOW_WEATHER_ENTITY] = selector(
             {ATTR_ENTITY: {ATTR_DOMAIN: "weather"}}
         )
-        data_schema[FLOW_NOTIFICATION_SERVICE] = selector({"text": {"type": "text"}})
+
+        # Get notification services
+        notify_services = sorted(
+            [
+                f"notify.{s}"
+                for s in self.hass.services.async_services().get("notify", {})
+            ]
+        )
+        data_schema[FLOW_NOTIFICATION_SERVICE] = selector(
+            {
+                "select": {
+                    "options": notify_services,
+                    "custom_value": True,
+                    "mode": "dropdown",
+                }
+            }
+        )
 
         return self.async_show_form(
             step_id="user",
@@ -589,12 +605,27 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             )
         ] = selector({ATTR_ENTITY: {ATTR_DOMAIN: "weather"}})
 
+        # Get notification services
+        notify_services = sorted(
+            [
+                f"notify.{s}"
+                for s in self.hass.services.async_services().get("notify", {})
+            ]
+        )
         data_schema[
             vol.Optional(
                 FLOW_NOTIFICATION_SERVICE,
                 description={"suggested_value": self.plant.notification_service},
             )
-        ] = selector({"text": {"type": "text"}})
+        ] = selector(
+            {
+                "select": {
+                    "options": notify_services,
+                    "custom_value": True,
+                    "mode": "dropdown",
+                }
+            }
+        )
 
         data_schema[vol.Optional(FLOW_OUTSIDE, default=self.plant.outside)] = cv.boolean
 
