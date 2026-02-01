@@ -98,7 +98,9 @@ from .const import (
 from .plant_helpers import PlantHelper
 
 _LOGGER = logging.getLogger(__name__)
+
 PLATFORMS = [Platform.NUMBER, Platform.SENSOR]
+
 SERVICE_REMOVE_PLANT = "remove_plant"
 
 # Use this during testing to generate some dummy-sensors
@@ -165,6 +167,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     hass.data[DOMAIN].setdefault(entry.entry_id, {})
     _LOGGER.debug("Setting up config entry %s: %s", entry.entry_id, entry)
 
+    _LOGGER.info("Starting setup for plant %s with platforms: %s", entry.title, PLATFORMS)
     plant = PlantDevice(hass, entry)
     hass.data[DOMAIN][entry.entry_id][ATTR_PLANT] = plant
 
