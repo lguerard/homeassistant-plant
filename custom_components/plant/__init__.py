@@ -649,7 +649,9 @@ class PlantDevice(RestoreEntity):
             f"{ATTR_HUMIDITY}_status": self.humidity_status,
             f"{ATTR_DLI}_status": self.dli_status,
             ATTR_NEXT_WATERING: self.next_watering,
-            "next_watering_days": int(str(self.next_watering).split(" ")[0]) if self.next_watering else 0,
+            "next_watering_days": int(str(self.next_watering).split(" ")[0])
+            if self.next_watering
+            else 0,
             ATTR_LAST_WATERED: self.last_watered,
             ATTR_SNOOZE_UNTIL: self.snooze_until,
             "last_notified": self.last_notified,
