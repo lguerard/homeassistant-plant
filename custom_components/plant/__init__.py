@@ -98,6 +98,7 @@ from .const import (
 from .plant_helpers import PlantHelper
 
 _LOGGER = logging.getLogger(__name__)
+PLATFORMS = [Platform.NUMBER, Platform.SENSOR]
 SERVICE_REMOVE_PLANT = "remove_plant"
 
 # Use this during testing to generate some dummy-sensors
