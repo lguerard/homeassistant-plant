@@ -544,6 +544,13 @@ class PlantDevice(RestoreEntity):
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
+        self.update_registry()
+        state = await self.async_get_last_state()
+        if state:
+            self.last_watered = state.attributes.get(ATTR_LAST_WATERED)
+            self.snooze_until = state.attributes.get(ATTR_SNOOZE_UNTIL)
+            self.last_notified = state.attributes.get("last_notified")
+
         if (
             not self.scientific_name
             or self.scientific_name == ""
@@ -560,9 +567,9 @@ class PlantDevice(RestoreEntity):
                     "scientific_name"
                 ) or opb_plant.get("species")
 
-                common_names = opb_plant.get("common_names")
-                if not common_names:
-                    common_names = opb_plant.get("common_name")
+                common_names = opb_plant.get("common_names") or opb_plant.get(
+                    "common_name"
+                )
                 if isinstance(common_names, list):
                     names = []
                     for x in common_names:
@@ -589,13 +596,12 @@ class PlantDevice(RestoreEntity):
                     or opb_plant.get("type")
                 )
 
-                origins = opb_plant.get("origin")
-                if not origins:
-                    origins = opb_plant.get("native_location")
-                if not origins:
-                    origins = opb_plant.get("native_distribution")
-                if not origins:
-                    origins = opb_plant.get("native_range")
+                origins = (
+                    opb_plant.get("origin")
+                    or opb_plant.get("native_location")
+                    or opb_plant.get("native_distribution")
+                    or opb_plant.get("native_range")
+                )
 
                 if isinstance(origins, list):
                     origin_list = []
@@ -1214,14 +1220,6 @@ class PlantDevice(RestoreEntity):
                 identifiers={(DOMAIN, self.unique_id)}
             )
             self._device_id = device.id
-
-    async def async_added_to_hass(self) -> None:
-        self.update_registry()
-        state = await self.async_get_last_state()
-        if state:
-            self.last_watered = state.attributes.get(ATTR_LAST_WATERED)
-            self.snooze_until = state.attributes.get(ATTR_SNOOZE_UNTIL)
-            self.last_notified = state.attributes.get("last_notified")
 
     @callback
     def async_watered(self) -> None:
