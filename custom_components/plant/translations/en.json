@@ -20,8 +20,7 @@
           "outside": "Plant is outside"
         },
         "data_description": {
-          "species": "Will be used for searching OpenPlantbook",
-          "notification_service": "Select an entity"
+          "species": "Will be used for searching OpenPlantbook"
         }
       },
       "select_species": {
@@ -86,9 +85,6 @@
           "notification_service": "Notification service",
           "watering": "Watering frequency (days)",
           "outside": "Plant is outside"
-        },
-        "data_description": {
-          "notification_service": "Select an entity"
         }
       }
     }

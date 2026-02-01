@@ -20,8 +20,7 @@
           "outside": "La plante est à l'extérieur"
         },
         "data_description": {
-          "species": "Sera utilisé pour la recherche dans OpenPlantbook",
-          "notification_service": "Sélectionnez une entité"
+          "species": "Sera utilisé pour la recherche dans OpenPlantbook"
         }
       },
       "select_species": {
@@ -86,9 +85,6 @@
           "moisture_trigger": "Utiliser l'humidité du sol comme déclencheur de problème",
           "temperature_trigger": "Utiliser la température comme déclencheur de problème",
           "outside": "La plante est à l'extérieur"
-        },
-        "data_description": {
-          "notification_service": "Sélectionnez une entité"
         }
       }
     }
