@@ -590,17 +590,23 @@ class PlantDevice(RestoreEntity):
                 else:
                     self.common_name = common_names
 
-                self.category = (
+                category = (
                     opb_plant.get("category")
                     or opb_plant.get("plant_type")
                     or opb_plant.get("type")
                 )
+                if isinstance(category, list):
+                    self.category = ", ".join([str(x) for x in category if x])
+                else:
+                    self.category = category
 
                 origins = (
                     opb_plant.get("origin")
                     or opb_plant.get("native_location")
                     or opb_plant.get("native_distribution")
                     or opb_plant.get("native_range")
+                    or opb_plant.get("distribution")
+                    or opb_plant.get("native_region")
                 )
 
                 if isinstance(origins, list):

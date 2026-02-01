@@ -316,17 +316,23 @@ class PlantHelper:
             else:
                 common_name = common_names
 
-            category = (
+            category_raw = (
                 opb_plant.get("category")
                 or opb_plant.get("plant_type")
                 or opb_plant.get("type")
             )
+            if isinstance(category_raw, list):
+                category = ", ".join([str(x) for x in category_raw if x])
+            else:
+                category = category_raw
 
             origins = (
                 opb_plant.get("origin")
                 or opb_plant.get("native_location")
                 or opb_plant.get("native_distribution")
                 or opb_plant.get("native_range")
+                or opb_plant.get("distribution")
+                or opb_plant.get("native_region")
             )
 
             if isinstance(origins, list):
