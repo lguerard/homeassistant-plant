@@ -21,7 +21,7 @@
         },
         "data_description": {
           "species": "Will be used for searching OpenPlantbook",
-          "notification_service": "Service to use for notifications (e.g. notify.mobile_app_iphone)"
+          "notification_service": "Select an entity"
         }
       },
       "select_species": {
@@ -88,7 +88,7 @@
           "outside": "Plant is outside"
         },
         "data_description": {
-          "notification_service": "Service to use for notifications (e.g. notify.mobile_app_iphone)"
+          "notification_service": "Select an entity"
         }
       }
     }
