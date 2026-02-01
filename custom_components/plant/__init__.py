@@ -1202,8 +1202,8 @@ class PlantDevice(RestoreEntity):
                 except (ValueError, TypeError, NameError):
                     hum = 50
 
-                # Weather info
-                if self.weather_entity:
+                # Weather info (only for outdoor plants)
+                if self.outside and self.weather_entity:
                     weather_state = self._hass.states.get(self.weather_entity)
                     if weather_state:
                         forecast = weather_state.attributes.get("forecast", [])
@@ -1217,7 +1217,7 @@ class PlantDevice(RestoreEntity):
                             if rainy:
                                 adj *= 0.5
                                 explanation_lines.append(
-                                    "Pluie prévue : -50% d'évaporation"
+                                    "Pluie prévue (extérieur) : -50% d'évaporation"
                                 )
 
                 adj = max(0.1, adj)
