@@ -1161,6 +1161,51 @@ class PlantDevice(RestoreEntity):
         base_days = self.watering_days or 7
         explanation_lines.append(f"Délai de base : {base_days} jours")
 
+        adj = 1.0
+        # Use temperature if available (set above in the health check)
+        try:
+            temp = float(temperature)
+            if temp != 22:
+                temp_adj = (temp - 22) * 0.05
+                adj *= 1 + temp_adj
+                explanation_lines.append(
+                    f"Température ({temp}°C) : {'+' if temp_adj > 0 else ''}{int(temp_adj * 100)}% d'évaporation"
+                )
+        except (ValueError, TypeError, NameError):
+            temp = 22
+
+        # Use humidity if available
+        try:
+            hum = float(humidity)
+            if hum != 50:
+                hum_adj = (hum - 50) * 0.004
+                adj *= 1 - hum_adj
+                explanation_lines.append(
+                    f"Humidité ({hum}%) : {'-' if hum_adj > 0 else '+'}{abs(int(hum_adj * 100))}% d'évaporation"
+                )
+        except (ValueError, TypeError, NameError):
+            hum = 50
+
+        # Weather info (only for outdoor plants)
+        if self.outside and self.weather_entity:
+            weather_state = self._hass.states.get(self.weather_entity)
+            if weather_state:
+                forecast = weather_state.attributes.get("forecast", [])
+                if forecast:
+                    rainy = any(
+                        f.get("condition")
+                        in ("rainy", "pouring", "hail", "snowy")
+                        or f.get("precipitation", 0) > 2
+                        for f in forecast[:2]
+                    )
+                    if rainy:
+                        adj *= 0.5
+                        explanation_lines.append(
+                            "Pluie prévue (extérieur) : -50% d'évaporation"
+                        )
+
+        adj = max(0.1, adj)
+
         if self.sensor_moisture is not None:
             moisture_state = self._hass.states.get(self.sensor_moisture.entity_id)
             if (
@@ -1177,50 +1222,6 @@ class PlantDevice(RestoreEntity):
                 if daily_loss <= 0:
                     daily_loss = 5
 
-                adj = 1.0
-                # Use temperature if available (set above in the health check)
-                try:
-                    temp = float(temperature)
-                    if temp != 22:
-                        temp_adj = (temp - 22) * 0.05
-                        adj *= 1 + temp_adj
-                        explanation_lines.append(
-                            f"Température ({temp}°C) : {'+' if temp_adj > 0 else ''}{int(temp_adj * 100)}% d'évaporation"
-                        )
-                except (ValueError, TypeError, NameError):
-                    temp = 22
-
-                # Use humidity if available
-                try:
-                    hum = float(humidity)
-                    if hum != 50:
-                        hum_adj = (hum - 50) * 0.004
-                        adj *= 1 - hum_adj
-                        explanation_lines.append(
-                            f"Humidité ({hum}%) : {'-' if hum_adj > 0 else '+'}{abs(int(hum_adj * 100))}% d'évaporation"
-                        )
-                except (ValueError, TypeError, NameError):
-                    hum = 50
-
-                # Weather info (only for outdoor plants)
-                if self.outside and self.weather_entity:
-                    weather_state = self._hass.states.get(self.weather_entity)
-                    if weather_state:
-                        forecast = weather_state.attributes.get("forecast", [])
-                        if forecast:
-                            rainy = any(
-                                f.get("condition")
-                                in ("rainy", "pouring", "hail", "snowy")
-                                or f.get("precipitation", 0) > 2
-                                for f in forecast[:2]
-                            )
-                            if rainy:
-                                adj *= 0.5
-                                explanation_lines.append(
-                                    "Pluie prévue (extérieur) : -50% d'évaporation"
-                                )
-
-                adj = max(0.1, adj)
                 actual_loss = daily_loss * adj
                 days = int((current_moisture - min_moisture) / actual_loss)
                 explanation_lines.append(
@@ -1235,19 +1236,26 @@ class PlantDevice(RestoreEntity):
 
                 if time_since_watering < timedelta(hours=12):
                     # Force a refresh to full period if just watered (sensors might be slow)
-                    if days < base_days:
-                        days = base_days
+                    # Use the adjusted cycle length for calculations
+                    base_adjusted = int(base_days / adj)
+                    if days < base_adjusted:
+                        days = base_adjusted
                         explanation_lines.append(
-                            "Arrosage récent détecté : réinitialisation du délai"
+                            "Arrosage récent détecté : délai réinitialisé"
                         )
                 elif self.sensor_moisture is None:
-                    # No sensor? Use days since last watering
-                    days = max(0, base_days - time_since_watering.days)
+                    # No sensor? Use days since last watering with environment adjustment
+                    total_cycle = base_days / adj
+                    days = max(0, int(total_cycle - time_since_watering.days))
                     explanation_lines.append(
-                        f"Calcul basé sur le temps ({time_since_watering.days}j écoulés)"
+                        f"Calcul basé sur le temps ({time_since_watering.days}j écoulés sur {total_cycle:.1f}j prévus)"
                     )
             except (ValueError, TypeError):
                 pass
+        elif self.sensor_moisture is None:
+            # no moisture and no last_watered
+            days = int(base_days / adj)
+            explanation_lines.append("Aucun historique d'arrosage : délai théorique")
 
         if days <= 0:
             self.next_watering = "0 j"
