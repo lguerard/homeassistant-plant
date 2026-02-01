@@ -1154,6 +1154,7 @@ class PlantDevice(RestoreEntity):
                 self.dli_status = STATE_OK
 
         # Calculate Next Watering
+        days = 0
         if self.sensor_moisture is not None:
             moisture_state = self._hass.states.get(self.sensor_moisture.entity_id)
             if (
@@ -1204,21 +1205,25 @@ class PlantDevice(RestoreEntity):
                 actual_loss = daily_loss * adj
                 days = int((current_moisture - min_moisture) / actual_loss)
 
-                # If recently watered, ensure we don't show "Water today" immediately
-                # even if sensors haven't updated yet
-                if self.last_watered:
-                    try:
-                        last_watered_dt = datetime.fromisoformat(self.last_watered)
-                        if datetime.now() - last_watered_dt < timedelta(hours=12):
-                            if days <= 0:
-                                days = self.watering_days or 7
-                    except ValueError:
-                        pass
+        # If recently watered, or if no sensor, use timer-based logic
+        if self.last_watered:
+            try:
+                last_watered_dt = datetime.fromisoformat(self.last_watered)
+                time_since_watering = datetime.now() - last_watered_dt
 
-                if days <= 0:
-                    self.next_watering = "0 j"
-                else:
-                    self.next_watering = f"{days} j"
+                if time_since_watering < timedelta(hours=12):
+                    # Force a refresh to full period if just watered (sensors might be slow)
+                    days = max(days, self.watering_days or 7)
+                elif self.sensor_moisture is None:
+                    # No sensor? Use days since last watering
+                    days = max(0, (self.watering_days or 7) - time_since_watering.days)
+            except (ValueError, TypeError):
+                pass
+
+        if days <= 0:
+            self.next_watering = "0 j"
+        else:
+            self.next_watering = f"{days} j"
 
         if not known_state:
             new_state = STATE_UNKNOWN
