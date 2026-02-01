@@ -202,7 +202,12 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 for s in self.hass.services.async_services().get("notify", {})
             ]
         )
-        data_schema[FLOW_NOTIFICATION_SERVICE] = selector(
+        data_schema[
+            vol.Optional(
+                FLOW_NOTIFICATION_SERVICE,
+                default=self.plant_info.get(FLOW_NOTIFICATION_SERVICE, ""),
+            )
+        ] = selector(
             {
                 "select": {
                     "options": notify_services,

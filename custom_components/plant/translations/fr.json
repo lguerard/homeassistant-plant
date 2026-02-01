@@ -16,11 +16,12 @@
           "room_temperature_sensor": "Capteur de température ambiante (fallback)",
           "room_humidity_sensor": "Capteur d'humidité ambiante (fallback)",
           "weather_entity": "Entité météo",
-          "notification_service": "Service de notification (ex: notify.mobile_app_iphone)",
+          "notification_service": "Service de notification",
           "outside": "La plante est à l'extérieur"
         },
         "data_description": {
-          "species": "Sera utilisé pour la recherche dans OpenPlantbook"
+          "species": "Sera utilisé pour la recherche dans OpenPlantbook",
+          "notification_service": "Service à utiliser pour les notifications (ex: notify.mobile_app_iphone)"
         }
       },
       "select_species": {
@@ -75,7 +76,7 @@
           "room_temperature_sensor": "Capteur de température ambiante (fallback)",
           "room_humidity_sensor": "Capteur d'humidité ambiante (fallback)",
           "weather_entity": "Entité météo",
-          "notification_service": "Service de notification (ex: notify.mobile_app_iphone)",
+          "notification_service": "Service de notification",
           "watering": "Fréquence d'arrosage (jours)",
           "entity_picture": "URL de l'image. Sera automatiquement mise à jour si l'espèce est trouvée dans OpenPlantbook",
           "illuminance_trigger": "Utiliser la luminosité comme déclencheur de problème",
