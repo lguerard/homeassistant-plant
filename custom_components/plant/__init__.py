@@ -319,27 +319,35 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
             if isinstance(entity_ids, str):
                 entity_ids = [entity_ids]
 
+            ent_reg = er.async_get(hass)
             for entity_id in entity_ids:
                 _LOGGER.info("Attempting to remove plant entity: %s", entity_id)
-                # Find the config entry for this plant
-                target_entry = None
-                for entry_id in hass.data[DOMAIN]:
-                    if not isinstance(hass.data[DOMAIN][entry_id], dict):
-                        continue
-                    plant_obj = hass.data[DOMAIN][entry_id].get(ATTR_PLANT)
-                    if plant_obj and plant_obj.entity_id == entity_id:
-                        target_entry = hass.config_entries.async_get_entry(entry_id)
-                        break
+                entity_entry = ent_reg.async_get(entity_id)
 
-                if target_entry:
+                if entity_entry and entity_entry.config_entry_id:
                     _LOGGER.info(
                         "Removing plant %s (ConfigEntry: %s)",
                         entity_id,
-                        target_entry.entry_id,
+                        entity_entry.config_entry_id,
                     )
-                    await hass.config_entries.async_remove(target_entry.entry_id)
+                    await hass.config_entries.async_remove(entity_entry.config_entry_id)
                 else:
-                    _LOGGER.warning("Could not find config entry for plant: %s", entity_id)
+                    # Fallback to searching hass.data
+                    _LOGGER.debug(
+                        "Entity not found in registry, searching in hass.data"
+                    )
+                    for entry_id in list(hass.data.get(DOMAIN, {}).keys()):
+                        if not isinstance(hass.data[DOMAIN][entry_id], dict):
+                            continue
+                        plant_obj = hass.data[DOMAIN][entry_id].get(ATTR_PLANT)
+                        if plant_obj and plant_obj.entity_id == entity_id:
+                            _LOGGER.info(
+                                "Removing plant %s via hass.data search (ConfigEntry: %s)",
+                                entity_id,
+                                entry_id,
+                            )
+                            await hass.config_entries.async_remove(entry_id)
+                            break
 
         hass.services.async_register(
             DOMAIN,
@@ -380,9 +388,16 @@ async def _plant_add_to_device_registry(
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    # Get the plant object before popping it
+    plant = hass.data.get(DOMAIN, {}).get(entry.entry_id, {}).get(ATTR_PLANT)
+
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
     if unload_ok:
+        if plant:
+            _LOGGER.debug("Removing plant entity %s", plant.entity_id)
+            await plant.async_remove()
+
         hass.data[DOMAIN].pop(entry.entry_id)
         hass.data[DATA_UTILITY].pop(entry.entry_id)
         _LOGGER.info(hass.data[DOMAIN])
