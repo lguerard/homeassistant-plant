@@ -296,9 +296,7 @@ class PlantHelper:
             scientific_name = opb_plant.get("scientific_name") or opb_plant.get(
                 "species"
             )
-            common_names = opb_plant.get("common_names")
-            if not common_names:
-                common_names = opb_plant.get("common_name")
+            common_names = opb_plant.get("common_names") or opb_plant.get("common_name")
 
             if isinstance(common_names, list):
                 names = []
@@ -324,13 +322,12 @@ class PlantHelper:
                 or opb_plant.get("type")
             )
 
-            origins = opb_plant.get("origin")
-            if not origins:
-                origins = opb_plant.get("native_location")
-            if not origins:
-                origins = opb_plant.get("native_distribution")
-            if not origins:
-                origins = opb_plant.get("native_range")
+            origins = (
+                opb_plant.get("origin")
+                or opb_plant.get("native_location")
+                or opb_plant.get("native_distribution")
+                or opb_plant.get("native_range")
+            )
 
             if isinstance(origins, list):
                 origin_list = []
