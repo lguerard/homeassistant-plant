@@ -268,28 +268,48 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
                     limit=30,
                 )
 
-    async def watered(call: ServiceCall) -> None:
-        """Service call to mark a plant as watered."""
-        entity_ids = call.data.get("entity_id")
-        for entry_id in hass.data[DOMAIN]:
-            plant_obj = hass.data[DOMAIN][entry_id].get(ATTR_PLANT)
-            if plant_obj and plant_obj.entity_id in entity_ids:
-                plant_obj.async_watered()
+    # Register services
+    if not hass.services.has_service(DOMAIN, SERVICE_WATERED):
 
-    async def snooze(call: ServiceCall) -> None:
-        """Service call to snooze watering notification."""
-        entity_ids = call.data.get("entity_id")
-        for entry_id in hass.data[DOMAIN]:
-            plant_obj = hass.data[DOMAIN][entry_id].get(ATTR_PLANT)
-            if plant_obj and plant_obj.entity_id in entity_ids:
-                plant_obj.async_snooze()
+        async def watered(call: ServiceCall) -> None:
+            """Service call to mark a plant as watered."""
+            entity_ids = call.data.get("entity_id")
+            if not entity_ids:
+                return
+            if isinstance(entity_ids, str):
+                entity_ids = [entity_ids]
 
-    hass.services.async_register(
-        DOMAIN, SERVICE_WATERED, watered, schema=cv.make_entity_service_schema({})
-    )
-    hass.services.async_register(
-        DOMAIN, SERVICE_SNOOZE, snooze, schema=cv.make_entity_service_schema({})
-    )
+            _LOGGER.debug("Service watered called for %s", entity_ids)
+
+            for entry_id in hass.data[DOMAIN]:
+                if not isinstance(hass.data[DOMAIN][entry_id], dict):
+                    continue
+                plant_obj = hass.data[DOMAIN][entry_id].get(ATTR_PLANT)
+                if plant_obj and plant_obj.entity_id in entity_ids:
+                    _LOGGER.info("Marking %s as watered", plant_obj.entity_id)
+                    plant_obj.async_watered()
+
+        async def snooze(call: ServiceCall) -> None:
+            """Service call to snooze watering notification."""
+            entity_ids = call.data.get("entity_id")
+            if not entity_ids:
+                return
+            if isinstance(entity_ids, str):
+                entity_ids = [entity_ids]
+
+            for entry_id in hass.data[DOMAIN]:
+                if not isinstance(hass.data[DOMAIN][entry_id], dict):
+                    continue
+                plant_obj = hass.data[DOMAIN][entry_id].get(ATTR_PLANT)
+                if plant_obj and plant_obj.entity_id in entity_ids:
+                    plant_obj.async_snooze()
+
+        hass.services.async_register(
+            DOMAIN, SERVICE_WATERED, watered, schema=cv.make_entity_service_schema({})
+        )
+        hass.services.async_register(
+            DOMAIN, SERVICE_SNOOZE, snooze, schema=cv.make_entity_service_schema({})
+        )
 
     async def handle_notification_action(event) -> None:
         """Handle actionable notification events."""
@@ -1235,12 +1255,14 @@ class PlantDevice(RestoreEntity):
         """Mark the plant as watered."""
         self.last_watered = datetime.now().isoformat()
         self.snooze_until = None
+        self.update()
         self.async_write_ha_state()
 
     @callback
     def async_snooze(self) -> None:
         """Snooze the watering notification."""
         self.snooze_until = (datetime.now() + timedelta(hours=1)).isoformat()
+        self.update()
         self.async_write_ha_state()
 
     def _check_and_notify(self) -> None:
