@@ -1215,6 +1215,7 @@ class PlantDevice(RestoreEntity):
 
         # Calculate Next Watering
         days = 0
+        moisture_calculated = False
         explanation_lines = []
         base_days = self.watering_days or 7
         explanation_lines.append(f"Délai de base : {base_days} jours")
@@ -1281,6 +1282,7 @@ class PlantDevice(RestoreEntity):
 
                 actual_loss = daily_loss * adj
                 days = int((current_moisture - min_moisture) / actual_loss)
+                moisture_calculated = True
                 explanation_lines.append(
                     f"Consommation actuelle : {actual_loss:.1f}% / jour"
                 )
@@ -1290,6 +1292,7 @@ class PlantDevice(RestoreEntity):
             try:
                 last_watered_dt = datetime.fromisoformat(self.last_watered)
                 time_since_watering = datetime.now() - last_watered_dt
+                days_since_watering = time_since_watering.total_seconds() / 86400
 
                 if time_since_watering < timedelta(hours=12):
                     # Force a refresh to full period if just watered (sensors might be slow)
@@ -1300,22 +1303,26 @@ class PlantDevice(RestoreEntity):
                         explanation_lines.append(
                             "Arrosage récent détecté : délai réinitialisé"
                         )
-                elif self.sensor_moisture is None:
-                    # No sensor? Use days since last watering with environment adjustment
+                elif not moisture_calculated:
+                    # No valid sensor data? Use timer-based fallback
                     total_cycle = base_days / adj
-                    days = max(0, int(total_cycle - time_since_watering.days))
+                    days = max(0, int(total_cycle - days_since_watering))
                     explanation_lines.append(
-                        f"Calcul basé sur le temps ({time_since_watering.days}j écoulés sur {total_cycle:.1f}j prévus)"
+                        f"Calcul basé sur le temps ({days_since_watering:.1f}j écoulés sur {total_cycle:.1f}j prévus)"
                     )
             except (ValueError, TypeError):
                 pass
-        elif self.sensor_moisture is None:
+        elif not moisture_calculated:
             # no moisture and no last_watered
             days = int(base_days / adj)
             explanation_lines.append("Aucun historique d'arrosage : délai théorique")
 
         if days <= 0:
             self.next_watering = "0 j"
+            if not moisture_calculated:
+                self.moisture_status = STATE_LOW
+                if self.moisture_trigger:
+                    new_state = STATE_PROBLEM
         else:
             self.next_watering = f"{days} j"
 
