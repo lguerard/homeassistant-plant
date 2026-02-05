@@ -1249,14 +1249,25 @@ class PlantDevice(RestoreEntity):
         if self.outside and self.weather_entity:
             weather_state = self._hass.states.get(self.weather_entity)
             if weather_state:
+                # Check current condition for immediate watering reset
+                current_condition = weather_state.state
+                if current_condition in ("rainy", "pouring", "hail"):
+                    explanation_lines.append("Il pleut actuellement : arrosage naturel")
+                    # If no valid moisture sensor, we reset the timer
+                    if not moisture_calculated:
+                        self.last_watered = datetime.now().isoformat()
+                        # Recalculate time since watering for the logic below
+                        time_since_watering = timedelta(0)
+                        days_since_watering = 0
+
                 forecast = weather_state.attributes.get("forecast", [])
                 if forecast:
-                    rainy = any(
+                    rainy_forecast = any(
                         f.get("condition") in ("rainy", "pouring", "hail", "snowy")
                         or f.get("precipitation", 0) > 2
                         for f in forecast[:2]
                     )
-                    if rainy:
+                    if rainy_forecast:
                         adj *= 0.5
                         explanation_lines.append(
                             "Pluie prévue (extérieur) : -50% d'évaporation"
