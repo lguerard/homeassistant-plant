@@ -135,7 +135,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             ): cv.boolean,
         }
 
-        data_schema[FLOW_SENSOR_TEMPERATURE] = selector(
+        data_schema[vol.Optional(FLOW_SENSOR_TEMPERATURE)] = selector(
             {
                 ATTR_ENTITY: {
                     ATTR_DEVICE_CLASS: SensorDeviceClass.TEMPERATURE,
@@ -143,7 +143,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             }
         )
-        data_schema[FLOW_SENSOR_MOISTURE] = selector(
+        data_schema[vol.Optional(FLOW_SENSOR_MOISTURE)] = selector(
             {
                 ATTR_ENTITY: {
                     ATTR_DEVICE_CLASS: SensorDeviceClass.MOISTURE,
@@ -151,7 +151,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             }
         )
-        data_schema[FLOW_SENSOR_CONDUCTIVITY] = selector(
+        data_schema[vol.Optional(FLOW_SENSOR_CONDUCTIVITY)] = selector(
             {
                 ATTR_ENTITY: {
                     ATTR_DEVICE_CLASS: SensorDeviceClass.CONDUCTIVITY,
@@ -159,7 +159,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             }
         )
-        data_schema[FLOW_SENSOR_ILLUMINANCE] = selector(
+        data_schema[vol.Optional(FLOW_SENSOR_ILLUMINANCE)] = selector(
             {
                 ATTR_ENTITY: {
                     ATTR_DEVICE_CLASS: SensorDeviceClass.ILLUMINANCE,
@@ -167,7 +167,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             }
         )
-        data_schema[FLOW_SENSOR_HUMIDITY] = selector(
+        data_schema[vol.Optional(FLOW_SENSOR_HUMIDITY)] = selector(
             {
                 ATTR_ENTITY: {
                     ATTR_DEVICE_CLASS: SensorDeviceClass.HUMIDITY,
@@ -175,7 +175,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             }
         )
-        data_schema[FLOW_SENSOR_ROOM_TEMPERATURE] = selector(
+        data_schema[vol.Optional(FLOW_SENSOR_ROOM_TEMPERATURE)] = selector(
             {
                 ATTR_ENTITY: {
                     ATTR_DEVICE_CLASS: SensorDeviceClass.TEMPERATURE,
@@ -183,7 +183,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             }
         )
-        data_schema[FLOW_SENSOR_ROOM_HUMIDITY] = selector(
+        data_schema[vol.Optional(FLOW_SENSOR_ROOM_HUMIDITY)] = selector(
             {
                 ATTR_ENTITY: {
                     ATTR_DEVICE_CLASS: SensorDeviceClass.HUMIDITY,
@@ -191,7 +191,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             }
         )
-        data_schema[FLOW_WEATHER_ENTITY] = selector(
+        data_schema[vol.Optional(FLOW_WEATHER_ENTITY)] = selector(
             {ATTR_ENTITY: {ATTR_DOMAIN: "weather"}}
         )
 
@@ -202,7 +202,7 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 for s in self.hass.services.async_services().get("notify", {})
             ]
         )
-        data_schema[FLOW_NOTIFICATION_SERVICE] = selector(
+        data_schema[vol.Optional(FLOW_NOTIFICATION_SERVICE)] = selector(
             {
                 "select": {
                     "options": notify_services,
@@ -611,7 +611,12 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 for s in self.hass.services.async_services().get("notify", {})
             ]
         )
-        data_schema[FLOW_NOTIFICATION_SERVICE] = selector(
+        data_schema[
+            vol.Optional(
+                FLOW_NOTIFICATION_SERVICE,
+                description={"suggested_value": self.plant.notification_service},
+            )
+        ] = selector(
             {
                 "select": {
                     "options": notify_services,
