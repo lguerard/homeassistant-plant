@@ -1336,6 +1336,7 @@ class PlantDevice(RestoreEntity):
                 new_state = STATE_PROBLEM
         else:
             self.next_watering = f"{days} j"
+            self.moisture_status = STATE_OK
 
         self.watering_explanation = "\n".join(explanation_lines)
 
