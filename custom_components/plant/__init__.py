@@ -1423,13 +1423,9 @@ class PlantDevice(RestoreEntity):
             )
             return
 
-        moisture = "???"
-        if self.sensor_moisture:
-            moisture = self.sensor_moisture.state
-
         service_data = {
             "title": f"Arrosage nécessaire : {self.name}",
-            "message": f"Votre {self.display_species} a soif ! (Humidité : {moisture}%)",
+            "message": f"Votre {self.display_species} a soif !",
             "data": {
                 "tag": f"plant_watering_{self.entity_id}",
                 "actions": [
