@@ -1330,10 +1330,9 @@ class PlantDevice(RestoreEntity):
 
         if days <= 0:
             self.next_watering = "0 j"
-            if not moisture_calculated:
-                self.moisture_status = STATE_LOW
-                if self.moisture_trigger:
-                    new_state = STATE_PROBLEM
+            self.moisture_status = STATE_LOW
+            if self.moisture_trigger:
+                new_state = STATE_PROBLEM
         else:
             self.next_watering = f"{days} j"
 
