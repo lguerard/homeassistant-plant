@@ -623,7 +623,7 @@ class PlantDevice(RestoreEntity):
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
-        self.update_registry()
+        await self._async_update_registry()
         state = await self.async_get_last_state()
         if state:
             self.last_watered = state.attributes.get(ATTR_LAST_WATERED)
@@ -1344,19 +1344,19 @@ class PlantDevice(RestoreEntity):
 
         self._attr_state = new_state
         self._check_and_notify()
-        self.update_registry()
+        self._hass.add_job(self._async_update_registry)
 
     @property
     def data_source(self) -> str | None:
         """Currently unused. For future use"""
         return None
 
-    def update_registry(self) -> None:
+    async def _async_update_registry(self) -> None:
         """Update registry with correct data"""
         # Is there a better way to add an entity to the device registry?
 
         device_registry = dr.async_get(self._hass)
-        device_registry.async_get_or_create(
+        await device_registry.async_get_or_create(
             config_entry_id=self._config.entry_id,
             identifiers={(DOMAIN, self.unique_id)},
             name=self.name,
@@ -1367,7 +1367,8 @@ class PlantDevice(RestoreEntity):
             device = device_registry.async_get_device(
                 identifiers={(DOMAIN, self.unique_id)}
             )
-            self._device_id = device.id
+            if device:
+                self._device_id = device.id
 
     @callback
     def async_watered(self) -> None:
@@ -1406,7 +1407,7 @@ class PlantDevice(RestoreEntity):
             except ValueError:
                 pass
 
-        self._hass.async_create_task(self._async_send_notification())
+        self._hass.add_job(self._async_send_notification)
 
     async def _async_send_notification(self) -> None:
         """Send a notification."""
