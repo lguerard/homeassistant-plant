@@ -623,7 +623,7 @@ class PlantDevice(RestoreEntity):
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
-        await self._async_update_registry()
+        self._async_update_registry()
         state = await self.async_get_last_state()
         if state:
             self.last_watered = state.attributes.get(ATTR_LAST_WATERED)
@@ -1351,12 +1351,13 @@ class PlantDevice(RestoreEntity):
         """Currently unused. For future use"""
         return None
 
-    async def _async_update_registry(self) -> None:
+    @callback
+    def _async_update_registry(self) -> None:
         """Update registry with correct data"""
         # Is there a better way to add an entity to the device registry?
 
         device_registry = dr.async_get(self._hass)
-        await device_registry.async_get_or_create(
+        device_registry.async_get_or_create(
             config_entry_id=self._config.entry_id,
             identifiers={(DOMAIN, self.unique_id)},
             name=self.name,
