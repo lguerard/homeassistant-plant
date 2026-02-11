@@ -1406,7 +1406,7 @@ class PlantDevice(RestoreEntity):
             except ValueError:
                 pass
 
-        self._hass.async_create_task(self._async_send_notification())
+        self._hass.add_job(self._async_send_notification)
 
     async def _async_send_notification(self) -> None:
         """Send a notification."""
