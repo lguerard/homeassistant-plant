@@ -1314,6 +1314,7 @@ class PlantDevice(RestoreEntity):
                         explanation_lines.append(
                             "Arrosage récent détecté : délai réinitialisé"
                         )
+                    self.moisture_status = STATE_OK
                 elif not moisture_calculated:
                     # No valid sensor data? Use timer-based fallback
                     total_cycle = base_days / adj
