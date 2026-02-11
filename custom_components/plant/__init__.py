@@ -1330,10 +1330,9 @@ class PlantDevice(RestoreEntity):
 
         if days <= 0:
             self.next_watering = "0 j"
-            if not moisture_calculated:
-                self.moisture_status = STATE_LOW
-                if self.moisture_trigger:
-                    new_state = STATE_PROBLEM
+            self.moisture_status = STATE_LOW
+            if self.moisture_trigger:
+                new_state = STATE_PROBLEM
         else:
             self.next_watering = f"{days} j"
 
@@ -1413,7 +1412,15 @@ class PlantDevice(RestoreEntity):
     async def _async_send_notification(self) -> None:
         """Send a notification."""
         notify_service = self.notification_service or "all_phones"
+        if notify_service.startswith("notify."):
+            notify_service = notify_service[7:]
+
         if not self._hass.services.has_service("notify", notify_service):
+            _LOGGER.error(
+                "Could not send notification for %s: Service notify.%s not found. Please check your plant configuration",
+                self.name,
+                notify_service,
+            )
             return
 
         moisture = "???"
