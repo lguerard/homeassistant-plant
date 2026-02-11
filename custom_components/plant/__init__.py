@@ -1412,7 +1412,15 @@ class PlantDevice(RestoreEntity):
     async def _async_send_notification(self) -> None:
         """Send a notification."""
         notify_service = self.notification_service or "all_phones"
+        if notify_service.startswith("notify."):
+            notify_service = notify_service[7:]
+
         if not self._hass.services.has_service("notify", notify_service):
+            _LOGGER.error(
+                "Could not send notification for %s: Service notify.%s not found. Please check your plant configuration",
+                self.name,
+                notify_service,
+            )
             return
 
         moisture = "???"
