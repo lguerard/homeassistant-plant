@@ -1448,7 +1448,7 @@ class PlantDevice(RestoreEntity):
                 elif not moisture_calculated:
                     # No valid sensor data? Use timer-based fallback
                     total_cycle = base_days / adj
-                    days = max(0, int(total_cycle - days_since_watering))
+                    days = int(total_cycle - days_since_watering)
                     explanation_lines.append(
                         f"Calcul basé sur le temps ({days_since_watering:.1f}j écoulés sur {total_cycle:.1f}j prévus)"
                     )
@@ -1459,13 +1459,12 @@ class PlantDevice(RestoreEntity):
             days = int(base_days / adj)
             explanation_lines.append("Aucun historique d'arrosage : délai théorique")
 
+        self.next_watering = f"{days} j"
         if days <= 0:
-            self.next_watering = "0 j"
             self.moisture_status = STATE_LOW
             if self.moisture_trigger:
                 new_state = STATE_PROBLEM
         else:
-            self.next_watering = f"{days} j"
             self.moisture_status = STATE_OK
 
         self.watering_explanation = "\n".join(explanation_lines)
