@@ -581,7 +581,7 @@ class PlantDevice(RestoreEntity):
             except (ValueError, TypeError, IndexError):
                 self.watering_days = 7
         self.next_watering = "0 j"
-        self.watering_explanation = ""
+        self._watering_explanation = ""
 
         self.dli = None
         self.micro_dli = None
@@ -1467,7 +1467,7 @@ class PlantDevice(RestoreEntity):
         else:
             self.moisture_status = STATE_OK
 
-        self.watering_explanation = "\n".join(explanation_lines)
+        self._watering_explanation = "\n".join(explanation_lines)
 
         if not known_state:
             new_state = STATE_UNKNOWN
