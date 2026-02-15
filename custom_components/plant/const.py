@@ -183,6 +183,7 @@ CONF_CHECK_DAYS = "check_days"
 CONF_SPECIES = "species"
 CONF_IMAGE = "entity_picture"
 CONF_WATERING = "watering"
+CONF_SMART_WATERING = "smart_watering"
 
 CONF_PLANTBOOK = "openplantbook"
 CONF_PLANTBOOK_MAPPING = {
