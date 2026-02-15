@@ -96,6 +96,7 @@ from .const import (
     STATE_LOW,
 )
 from .plant_helpers import PlantHelper
+from .watering import days_until, next_watering
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -498,6 +499,9 @@ class PlantDevice(RestoreEntity):
         )
 
         self.plant_complete = False
+        self._water_factor: float = 1.0
+        self._last_moisture: float | None = None
+        self._watering_explanation: str = "Ideal conditions"
         self._device_id = None
 
         self._check_days = None
@@ -620,6 +624,73 @@ class PlantDevice(RestoreEntity):
         """Whether we will generate alarms based on conductivity"""
         return self._config.options.get(FLOW_CONDUCTIVITY_TRIGGER, True)
 
+    @property
+    def watering_explanation(self) -> str:
+        """Return the human-friendly explanation for the current watering interval."""
+        return self._watering_explanation
+
+    def calculate_comfort_and_care(self) -> tuple[int, bool]:
+        """Calculate a 0-100 comfort score and check if misting is needed.
+
+        Comfort score is a weighted average of how well the sensors are within
+        their respective min/max thresholds.
+        """
+        scores = []
+        misting_required = False
+
+        # Helper to get float state
+        def get_val(sensor_obj):
+            if sensor_obj and sensor_obj.state not in (
+                STATE_UNKNOWN,
+                STATE_UNAVAILABLE,
+            ):
+                try:
+                    return float(sensor_obj.state)
+                except (ValueError, TypeError):
+                    return None
+            return None
+
+        # Check Temperature
+        val = get_val(self.sensor_temperature)
+        if val is not None:
+            v_min = getattr(self.min_temperature, "state", 10)
+            v_max = getattr(self.max_temperature, "state", 35)
+            scores.append(self._calculate_range_score(val, float(v_min), float(v_max)))
+
+        # Check Humidity
+        val = get_val(self.sensor_humidity)
+        if val is not None:
+            v_min = getattr(self.min_humidity, "state", 30)
+            v_max = getattr(self.max_humidity, "state", 80)
+            scores.append(self._calculate_range_score(val, float(v_min), float(v_max)))
+
+            # Misting logic for tropicals/ferns
+            cat_lower = (self.category or "").lower()
+            if any(c in cat_lower for c in ["tropical", "fern"]) and val < 40.0:
+                misting_required = True
+
+        # Check Moisture
+        val = get_val(self.sensor_moisture)
+        if val is not None:
+            v_min = getattr(self.min_moisture, "state", 20)
+            v_max = getattr(self.max_moisture, "state", 60)
+            scores.append(self._calculate_range_score(val, float(v_min), float(v_max)))
+
+        if not scores:
+            return 100, False
+
+        return int(sum(scores) / len(scores)), misting_required
+
+    def _calculate_range_score(self, val: float, v_min: float, v_max: float) -> float:
+        """Calculate a 0-100 score for a value within a range."""
+        if v_min <= val <= v_max:
+            return 100.0
+        if val < v_min:
+            # Score drops linearly below min (0 at v_min - 10)
+            return max(0.0, 100.0 - (v_min - val) * 10.0)
+        # Score drops linearly above max (0 at v_max + 10)
+        return max(0.0, 100.0 - (val - v_max) * 10.0)
+
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
@@ -629,6 +700,8 @@ class PlantDevice(RestoreEntity):
             self.last_watered = state.attributes.get(ATTR_LAST_WATERED)
             self.snooze_until = state.attributes.get(ATTR_SNOOZE_UNTIL)
             self.last_notified = state.attributes.get("last_notified")
+            self._water_factor = state.attributes.get("water_factor", 1.0)
+            self._last_moisture = state.attributes.get("last_moisture")
 
         if (
             not self.scientific_name
@@ -735,6 +808,8 @@ class PlantDevice(RestoreEntity):
             ATTR_SNOOZE_UNTIL: self.snooze_until,
             "last_notified": self.last_notified,
             "watering_explanation": self.watering_explanation,
+            "water_factor": self._water_factor,
+            "last_moisture": self._last_moisture,
         }
 
         # Area lookup
@@ -916,6 +991,29 @@ class PlantDevice(RestoreEntity):
             "origin": self.origin,
             "pid": self.species,
         }
+
+        # Enhanced health and watering data
+        comfort_score, misting_required = self.calculate_comfort_and_care()
+        response["health"] = {
+            "comfort_score": comfort_score,
+            "misting_required": misting_required,
+        }
+        # Add factor to watering or existing response?
+        # The existing 'response' object has ATTR_NEXT_WATERING etc.
+        # We'll merge our expanded watering info into the response
+        response["watering"] = {
+            "last_watered": self.last_watered,
+            "next_watering": self.next_watering,
+            "days_until": days_until(self.next_watering)
+            if self.next_watering
+            else None,
+            "needs_watering": (days_until(self.next_watering) <= 0.0)
+            if self.next_watering
+            else False,
+            "explanation": self.watering_explanation,
+            "water_factor": round(self._water_factor, 2),
+        }
+
         if self.dli and self.dli.state and self.dli.state != STATE_UNKNOWN:
             response[ATTR_DLI][ATTR_CURRENT] = float(self.dli.state)
 
