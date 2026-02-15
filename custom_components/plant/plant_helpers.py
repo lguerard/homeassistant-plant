@@ -164,6 +164,7 @@ class PlantHelper:
         """Helper to fetch a single species/genus from OPB."""
         try:
             async with timeout(REQUEST_TIMEOUT):
+                # Try with lowercase first
                 plant_get_result = await self.hass.services.async_call(
                     domain=DOMAIN_PLANTBOOK,
                     service=OPB_GET,
@@ -171,6 +172,22 @@ class PlantHelper:
                     blocking=True,
                     return_response=True,
                 )
+
+                # If that failed, try with original case if different
+                if not bool(plant_get_result) and species != species.lower():
+                    _LOGGER.debug(
+                        "No result for '%s', trying original case '%s'",
+                        species.lower(),
+                        species,
+                    )
+                    plant_get_result = await self.hass.services.async_call(
+                        domain=DOMAIN_PLANTBOOK,
+                        service=OPB_GET,
+                        service_data={ATTR_SPECIES: species},
+                        blocking=True,
+                        return_response=True,
+                    )
+
             if bool(plant_get_result):
                 _LOGGER.debug("Result for %s: %s", species, plant_get_result)
                 return plant_get_result
@@ -427,11 +444,18 @@ class PlantHelper:
         # Automatic watering frequency estimate based on moisture range if not provided
         final_watering = config.get(CONF_WATERING, watering)
         if final_watering is None:
-            moisture_range = config.get(CONF_MAX_MOISTURE, max_moisture) - config.get(
-                CONF_MIN_MOISTURE, min_moisture
-            )
-            if moisture_range > 0:
-                final_watering = max(1, round(moisture_range / 5))
+            # Fallback heuristic using Min Moisture if available
+            # Low min moisture implies drought tolerance (less frequent watering)
+            # High min moisture implies water lover (more frequent watering)
+            min_m = config.get(CONF_MIN_MOISTURE, min_moisture)
+
+            if min_m is not None:
+                if min_m < 15:
+                    final_watering = 14  # Minimum/Drought Tolerant
+                elif min_m > 35:
+                    final_watering = 4  # Frequent/Tropical
+                else:
+                    final_watering = 7  # Average
             else:
                 final_watering = 7
 
