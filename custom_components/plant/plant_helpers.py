@@ -132,12 +132,35 @@ class PlantHelper:
         return None
 
     async def openplantbook_get(self, species: str) -> dict[str:Any] | None:
-        """Get information about a plant species from OpenPlantbook"""
+        """Get information about a plant species from OpenPlantbook.
+
+        If the full species is not found, tries a generic genus-level search.
+        """
         if not self.has_openplantbook:
             return None
         if not species or species == "":
             return None
 
+        result = await self._fetch_opb_species(species)
+        if result:
+            return result
+
+        # Genus-level fallback
+        if " " in species:
+            genus = species.split(" ")[0].strip()
+            if genus:
+                _LOGGER.info(
+                    "Species '%s' not found in OPB, trying genus fallback '%s'",
+                    species,
+                    genus,
+                )
+                return await self._fetch_opb_species(genus)
+
+        _LOGGER.info("Did not find '%s' (or its genus) in OpenPlantbook", species)
+        return None
+
+    async def _fetch_opb_species(self, species: str) -> dict[str:Any] | None:
+        """Helper to fetch a single species/genus from OPB."""
         try:
             async with timeout(REQUEST_TIMEOUT):
                 plant_get_result = await self.hass.services.async_call(
@@ -147,21 +170,13 @@ class PlantHelper:
                     blocking=True,
                     return_response=True,
                 )
+            if bool(plant_get_result):
+                _LOGGER.debug("Result for %s: %s", species, plant_get_result)
+                return plant_get_result
         except TimeoutError:
-            _LOGGER.warning("Openplantook request timed out")
+            _LOGGER.warning("Openplantbook request timed out")
         except Exception as ex:
-            _LOGGER.warning("Openplantook does not work, error: %s", ex)
-            return None
-        if bool(plant_get_result):
-            _LOGGER.debug("Result for %s: %s", species, plant_get_result)
-            return plant_get_result
-
-        _LOGGER.info("Did not find '%s' in OpenPlantbook", species)
-        create_notification(
-            hass=self.hass,
-            title="Species not found",
-            message=f"Could not find «{species}» in OpenPlantbook.",
-        )
+            _LOGGER.warning("Openplantbook does not work, error: %s", ex)
         return None
 
     async def generate_configentry(self, config: dict) -> dict[str:Any]:
@@ -291,7 +306,41 @@ class PlantHelper:
             min_humidity = opb_plant.get(
                 CONF_PLANTBOOK_MAPPING[CONF_MIN_HUMIDITY], DEFAULT_MIN_HUMIDITY
             )
+
+            # Determine category first to assist with watering fallback
+            category_raw = (
+                opb_plant.get("category")
+                or opb_plant.get("plant_type")
+                or opb_plant.get("type")
+            )
+
             watering = opb_plant.get(CONF_PLANTBOOK_MAPPING[CONF_WATERING])
+            if isinstance(watering, str):
+                watering_lower = watering.lower()
+                if "frequent" in watering_lower:
+                    watering = 3
+                elif "average" in watering_lower:
+                    # Refine "average" by category
+                    cat_str = str(category_raw).lower() if category_raw else ""
+                    if any(c in cat_str for c in ["cactus", "succulent", "desert"]):
+                        watering = 21
+                    elif any(c in cat_str for c in ["fern", "tropical", "aquatic"]):
+                        watering = 4
+                    else:
+                        watering = 7
+                elif "minimum" in watering_lower:
+                    watering = 14
+                elif "none" in watering_lower:
+                    watering = 30
+            elif watering is None:
+                # Fallback by category if no watering info at all
+                cat_str = str(category_raw).lower() if category_raw else ""
+                if any(c in cat_str for c in ["cactus", "succulent", "desert"]):
+                    watering = 21
+                elif any(c in cat_str for c in ["fern", "tropical", "aquatic"]):
+                    watering = 4
+                else:
+                    watering = 7
 
             scientific_name = opb_plant.get("scientific_name") or opb_plant.get(
                 "species"
@@ -316,11 +365,6 @@ class PlantHelper:
             else:
                 common_name = common_names
 
-            category_raw = (
-                opb_plant.get("category")
-                or opb_plant.get("plant_type")
-                or opb_plant.get("type")
-            )
             if isinstance(category_raw, list):
                 category = ", ".join([str(x) for x in category_raw if x])
             else:
