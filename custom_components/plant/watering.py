@@ -242,9 +242,30 @@ def next_watering(
 
 
 # Additional helper: compute days until watering (float days)
-def days_until(next_dt: datetime, from_dt: Optional[datetime] = None) -> float:
+# Additional helper: compute days until watering (float days)
+def days_until(next_dt: datetime | str, from_dt: Optional[datetime] = None) -> float:
+    if isinstance(next_dt, str):
+        try:
+            # Handle standard ISO format (python 3.7+ fromisoformat handles +00:00)
+            # but replace Z just in case
+            next_dt = datetime.fromisoformat(next_dt.replace("Z", "+00:00"))
+        except ValueError:
+            return 0.0
+
     if from_dt is None:
-        from_dt = datetime.utcnow()
+        # Match timezone awareness of next_dt if possible
+        if next_dt.tzinfo:
+            from_dt = datetime.now().astimezone()
+        else:
+            from_dt = datetime.now()
+
+    # Ensure timezone compatibility
+    if next_dt.tzinfo is not None and from_dt.tzinfo is None:
+        from_dt = from_dt.astimezone()
+    elif next_dt.tzinfo is None and from_dt.tzinfo is not None:
+        # Assume next_dt is in the same timezone as from_dt if naive
+        next_dt = next_dt.replace(tzinfo=from_dt.tzinfo)
+
     delta = next_dt - from_dt
     return delta.total_seconds() / 86400.0
 
