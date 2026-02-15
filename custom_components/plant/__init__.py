@@ -331,7 +331,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
                 if plant_obj:
                     if not entity_ids or plant_obj.entity_id in entity_ids:
                         _LOGGER.info("Forcing update for %s", plant_obj.entity_id)
-                        plant_obj.update()
+                        plant_obj.async_write_ha_state()
 
         hass.services.async_register(
             DOMAIN,
