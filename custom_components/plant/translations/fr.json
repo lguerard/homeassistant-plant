@@ -52,6 +52,7 @@
           "max_humidity": "Humidité de l'air maximale (%)",
           "min_humidity": "Humidité de l'air minimale (%)",
           "watering": "Fréquence d'arrosage (jours)",
+          "smart_watering": "Activer l'assistant d'arrosage intelligent (Adaptatif)",
           "entity_picture": "URL de l'image"
         }
       }
@@ -77,6 +78,7 @@
           "weather_entity": "Entité météo",
           "notification_service": "Service de notification",
           "watering": "Fréquence d'arrosage (jours)",
+          "smart_watering": "Activer l'assistant d'arrosage intelligent (Adaptatif)",
           "entity_picture": "URL de l'image. Sera automatiquement mise à jour si l'espèce est trouvée dans OpenPlantbook",
           "illuminance_trigger": "Utiliser la luminosité comme déclencheur de problème",
           "dli_trigger": "Utiliser l'intégrale quotidienne de lumière (DLI) comme déclencheur de problème",
