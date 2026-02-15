@@ -543,6 +543,10 @@ class PlantDevice(RestoreEntity):
         self.watering_days = self._config.options.get(
             CONF_WATERING, config.data[FLOW_PLANT_INFO].get(CONF_WATERING, 7)
         )
+        self.smart_watering = self._config.options.get(
+            CONF_SMART_WATERING,
+            config.data[FLOW_PLANT_INFO].get(CONF_SMART_WATERING, True),
+        )
         self.outside = self._config.options.get(
             FLOW_OUTSIDE, config.data[FLOW_PLANT_INFO].get(FLOW_OUTSIDE, False)
         )
@@ -1012,6 +1016,7 @@ class PlantDevice(RestoreEntity):
             else False,
             "explanation": self.watering_explanation,
             "water_factor": round(self._water_factor, 2),
+            "smart_watering": self.smart_watering,
         }
 
         if self.dli and self.dli.state and self.dli.state != STATE_UNKNOWN:
@@ -1315,8 +1320,13 @@ class PlantDevice(RestoreEntity):
         days = 0
         moisture_calculated = False
         explanation_lines = []
-        base_days = self.watering_days or 7
-        explanation_lines.append(f"Délai de base : {base_days} jours")
+        base_days = (self.watering_days or 7) * self._water_factor
+        if self._water_factor != 1.0:
+            explanation_lines.append(
+                f"Délai de base : {self.watering_days or 7}j (Apprentissage : x{self._water_factor:.2f})"
+            )
+        else:
+            explanation_lines.append(f"Délai de base : {base_days:.0f} jours")
 
         adj = 1.0
         # Use temperature if available (set above in the health check)
@@ -1473,7 +1483,41 @@ class PlantDevice(RestoreEntity):
     @callback
     def async_watered(self) -> None:
         """Mark the plant as watered."""
-        self.last_watered = datetime.now().isoformat()
+        now = datetime.now()
+
+        # Adaptive learning: adjust _water_factor based on when the user actually watered
+        if self.last_watered:
+            try:
+                last_dt = datetime.fromisoformat(self.last_watered)
+                # How long since last watering in days
+                days_since_watering = (now - last_dt).total_seconds() / 86400
+
+                # What was our prediction?
+                # self.next_watering is "X j"
+                try:
+                    remaining_days = int(str(self.next_watering).split(" ")[0])
+                    # Total predicted interval for this cycle
+                    predicted_total_days = days_since_watering + remaining_days
+
+                    if predicted_total_days > 0.5:
+                        ratio = days_since_watering / predicted_total_days
+                        # ratio > 1: watered later than predicted -> increase factor
+                        # ratio < 1: watered earlier than predicted -> decrease factor
+                        ratio = max(0.5, min(2.0, ratio))
+                        new_factor = self._water_factor * (1.0 + (ratio - 1.0) * 0.1)
+                        self._water_factor = max(0.1, min(10.0, new_factor))
+                        _LOGGER.debug(
+                            "Plant %s adaptive factor: ratio=%.2f, new factor=%.4f",
+                            self.name,
+                            ratio,
+                            self._water_factor,
+                        )
+                except (ValueError, IndexError):
+                    pass
+            except ValueError:
+                pass
+
+        self.last_watered = now.isoformat()
         self.snooze_until = None
         self.update()
         self.async_write_ha_state()
