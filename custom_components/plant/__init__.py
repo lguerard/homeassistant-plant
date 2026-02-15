@@ -92,6 +92,7 @@ from .const import (
     READING_TEMPERATURE,
     SERVICE_REPLACE_SENSOR,
     SERVICE_SNOOZE,
+    SERVICE_UPDATE_PLANTS,
     SERVICE_WATERED,
     STATE_HIGH,
     STATE_LOW,
@@ -317,6 +318,26 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
         )
         hass.services.async_register(
             DOMAIN, SERVICE_SNOOZE, snooze, schema=cv.make_entity_service_schema({})
+        )
+
+        async def update_plants(call: ServiceCall) -> None:
+            """Service call to force update all plants."""
+            entity_ids = call.data.get("entity_id")
+
+            for entry_id in hass.data[DOMAIN]:
+                if not isinstance(hass.data[DOMAIN][entry_id], dict):
+                    continue
+                plant_obj = hass.data[DOMAIN][entry_id].get(ATTR_PLANT)
+                if plant_obj:
+                    if not entity_ids or plant_obj.entity_id in entity_ids:
+                        _LOGGER.info("Forcing update for %s", plant_obj.entity_id)
+                        plant_obj.update()
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_UPDATE_PLANTS,
+            update_plants,
+            schema=cv.make_entity_service_schema({}),
         )
 
         async def remove_plant(call: ServiceCall) -> None:

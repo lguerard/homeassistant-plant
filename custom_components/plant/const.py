@@ -151,6 +151,7 @@ DEFAULT_LUX_TO_PPFD = 0.0185
 SERVICE_REPLACE_SENSOR = "replace_sensor"
 SERVICE_WATERED = "watered"
 SERVICE_SNOOZE = "snooze"
+SERVICE_UPDATE_PLANTS = "update_plants"
 
 STATE_LOW = "Low"
 STATE_HIGH = "High"

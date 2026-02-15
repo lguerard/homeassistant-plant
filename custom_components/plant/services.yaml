@@ -22,3 +22,15 @@ replace_sensor:
       selector:
         entity:
           domain: sensor
+
+update_plants:
+  description: Force recalculation of watering frequency for all or specific plants.
+  fields:
+    entity_id:
+      name: Entity
+      description: Name of the plant entities to update.
+      required: false
+      selector:
+        entity:
+          domain: plant
+          multiple: true
