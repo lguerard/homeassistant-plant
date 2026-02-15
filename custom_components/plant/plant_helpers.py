@@ -446,6 +446,7 @@ class PlantHelper:
                 "category": category or "",
                 "origin": origin or "",
                 CONF_WATERING: final_watering,
+                CONF_SMART_WATERING: config.get(CONF_SMART_WATERING, True),
                 ATTR_OUTSIDE: config.get(FLOW_OUTSIDE, False),
                 ATTR_LIMITS: {
                     CONF_MAX_ILLUMINANCE: config.get(

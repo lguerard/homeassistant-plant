@@ -52,6 +52,7 @@
           "max_humidity": "Maximum air humidity (%)",
           "min_humidity": "Minimum air humidity (%)",
           "watering": "Watering frequency (days)",
+          "smart_watering": "Enable Intelligent Watering Assistant (Adaptive)",
           "entity_picture": "Image URL"
         }
       }
@@ -84,6 +85,7 @@
           "weather_entity": "Weather entity",
           "notification_service": "Notification service",
           "watering": "Watering frequency (days)",
+          "smart_watering": "Enable Intelligent Watering Assistant (Adaptive)",
           "outside": "Plant is outside"
         }
       }

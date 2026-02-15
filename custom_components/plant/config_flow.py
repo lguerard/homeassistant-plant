@@ -284,12 +284,17 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
                 self.plant_info[OPB_DISPLAY_PID] = user_input.get(OPB_DISPLAY_PID)
                 self.plant_info[CONF_WATERING] = user_input.get(CONF_WATERING, 7)
+                self.plant_info[CONF_SMART_WATERING] = user_input.get(
+                    CONF_SMART_WATERING, True
+                )
                 if not self.plant_info[ATTR_SPECIES]:
                     self.plant_info[ATTR_SPECIES] = self.plant_info[OPB_DISPLAY_PID]
                 user_input.pop(ATTR_ENTITY_PICTURE)
                 user_input.pop(OPB_DISPLAY_PID)
                 if CONF_WATERING in user_input:
                     user_input.pop(CONF_WATERING)
+                if CONF_SMART_WATERING in user_input:
+                    user_input.pop(CONF_SMART_WATERING)
                 if FLOW_RIGHT_PLANT in user_input:
                     user_input.pop(FLOW_RIGHT_PLANT)
                 self.plant_info[FLOW_PLANT_LIMITS] = user_input
@@ -414,6 +419,12 @@ class PlantConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 ),
             )
         ] = int
+        data_schema[
+            vol.Optional(
+                CONF_SMART_WATERING,
+                default=plant_config[FLOW_PLANT_INFO].get(CONF_SMART_WATERING, True),
+            )
+        ] = bool
         data_schema[
             vol.Required(
                 CONF_WATERING,

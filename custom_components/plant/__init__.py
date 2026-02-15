@@ -96,6 +96,7 @@ from .const import (
     STATE_LOW,
 )
 from .plant_helpers import PlantHelper
+from .watering import days_until, next_watering
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -498,6 +499,9 @@ class PlantDevice(RestoreEntity):
         )
 
         self.plant_complete = False
+        self._water_factor: float = 1.0
+        self._last_moisture: float | None = None
+        self._watering_explanation: str = "Ideal conditions"
         self._device_id = None
 
         self._check_days = None
@@ -538,6 +542,10 @@ class PlantDevice(RestoreEntity):
         )
         self.watering_days = self._config.options.get(
             CONF_WATERING, config.data[FLOW_PLANT_INFO].get(CONF_WATERING, 7)
+        )
+        self.smart_watering = self._config.options.get(
+            CONF_SMART_WATERING,
+            config.data[FLOW_PLANT_INFO].get(CONF_SMART_WATERING, True),
         )
         self.outside = self._config.options.get(
             FLOW_OUTSIDE, config.data[FLOW_PLANT_INFO].get(FLOW_OUTSIDE, False)
@@ -620,6 +628,73 @@ class PlantDevice(RestoreEntity):
         """Whether we will generate alarms based on conductivity"""
         return self._config.options.get(FLOW_CONDUCTIVITY_TRIGGER, True)
 
+    @property
+    def watering_explanation(self) -> str:
+        """Return the human-friendly explanation for the current watering interval."""
+        return self._watering_explanation
+
+    def calculate_comfort_and_care(self) -> tuple[int, bool]:
+        """Calculate a 0-100 comfort score and check if misting is needed.
+
+        Comfort score is a weighted average of how well the sensors are within
+        their respective min/max thresholds.
+        """
+        scores = []
+        misting_required = False
+
+        # Helper to get float state
+        def get_val(sensor_obj):
+            if sensor_obj and sensor_obj.state not in (
+                STATE_UNKNOWN,
+                STATE_UNAVAILABLE,
+            ):
+                try:
+                    return float(sensor_obj.state)
+                except (ValueError, TypeError):
+                    return None
+            return None
+
+        # Check Temperature
+        val = get_val(self.sensor_temperature)
+        if val is not None:
+            v_min = getattr(self.min_temperature, "state", 10)
+            v_max = getattr(self.max_temperature, "state", 35)
+            scores.append(self._calculate_range_score(val, float(v_min), float(v_max)))
+
+        # Check Humidity
+        val = get_val(self.sensor_humidity)
+        if val is not None:
+            v_min = getattr(self.min_humidity, "state", 30)
+            v_max = getattr(self.max_humidity, "state", 80)
+            scores.append(self._calculate_range_score(val, float(v_min), float(v_max)))
+
+            # Misting logic for tropicals/ferns
+            cat_lower = (self.category or "").lower()
+            if any(c in cat_lower for c in ["tropical", "fern"]) and val < 40.0:
+                misting_required = True
+
+        # Check Moisture
+        val = get_val(self.sensor_moisture)
+        if val is not None:
+            v_min = getattr(self.min_moisture, "state", 20)
+            v_max = getattr(self.max_moisture, "state", 60)
+            scores.append(self._calculate_range_score(val, float(v_min), float(v_max)))
+
+        if not scores:
+            return 100, False
+
+        return int(sum(scores) / len(scores)), misting_required
+
+    def _calculate_range_score(self, val: float, v_min: float, v_max: float) -> float:
+        """Calculate a 0-100 score for a value within a range."""
+        if v_min <= val <= v_max:
+            return 100.0
+        if val < v_min:
+            # Score drops linearly below min (0 at v_min - 10)
+            return max(0.0, 100.0 - (v_min - val) * 10.0)
+        # Score drops linearly above max (0 at v_max + 10)
+        return max(0.0, 100.0 - (val - v_max) * 10.0)
+
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
@@ -629,6 +704,8 @@ class PlantDevice(RestoreEntity):
             self.last_watered = state.attributes.get(ATTR_LAST_WATERED)
             self.snooze_until = state.attributes.get(ATTR_SNOOZE_UNTIL)
             self.last_notified = state.attributes.get("last_notified")
+            self._water_factor = state.attributes.get("water_factor", 1.0)
+            self._last_moisture = state.attributes.get("last_moisture")
 
         if (
             not self.scientific_name
@@ -735,6 +812,8 @@ class PlantDevice(RestoreEntity):
             ATTR_SNOOZE_UNTIL: self.snooze_until,
             "last_notified": self.last_notified,
             "watering_explanation": self.watering_explanation,
+            "water_factor": self._water_factor,
+            "last_moisture": self._last_moisture,
         }
 
         # Area lookup
@@ -916,6 +995,30 @@ class PlantDevice(RestoreEntity):
             "origin": self.origin,
             "pid": self.species,
         }
+
+        # Enhanced health and watering data
+        comfort_score, misting_required = self.calculate_comfort_and_care()
+        response["health"] = {
+            "comfort_score": comfort_score,
+            "misting_required": misting_required,
+        }
+        # Add factor to watering or existing response?
+        # The existing 'response' object has ATTR_NEXT_WATERING etc.
+        # We'll merge our expanded watering info into the response
+        response["watering"] = {
+            "last_watered": self.last_watered,
+            "next_watering": self.next_watering,
+            "days_until": days_until(self.next_watering)
+            if self.next_watering
+            else None,
+            "needs_watering": (days_until(self.next_watering) <= 0.0)
+            if self.next_watering
+            else False,
+            "explanation": self.watering_explanation,
+            "water_factor": round(self._water_factor, 2),
+            "smart_watering": self.smart_watering,
+        }
+
         if self.dli and self.dli.state and self.dli.state != STATE_UNKNOWN:
             response[ATTR_DLI][ATTR_CURRENT] = float(self.dli.state)
 
@@ -1217,8 +1320,13 @@ class PlantDevice(RestoreEntity):
         days = 0
         moisture_calculated = False
         explanation_lines = []
-        base_days = self.watering_days or 7
-        explanation_lines.append(f"Délai de base : {base_days} jours")
+        base_days = (self.watering_days or 7) * self._water_factor
+        if self._water_factor != 1.0:
+            explanation_lines.append(
+                f"Délai de base : {self.watering_days or 7}j (Apprentissage : x{self._water_factor:.2f})"
+            )
+        else:
+            explanation_lines.append(f"Délai de base : {base_days:.0f} jours")
 
         adj = 1.0
         # Use temperature if available (set above in the health check)
@@ -1375,7 +1483,41 @@ class PlantDevice(RestoreEntity):
     @callback
     def async_watered(self) -> None:
         """Mark the plant as watered."""
-        self.last_watered = datetime.now().isoformat()
+        now = datetime.now()
+
+        # Adaptive learning: adjust _water_factor based on when the user actually watered
+        if self.last_watered:
+            try:
+                last_dt = datetime.fromisoformat(self.last_watered)
+                # How long since last watering in days
+                days_since_watering = (now - last_dt).total_seconds() / 86400
+
+                # What was our prediction?
+                # self.next_watering is "X j"
+                try:
+                    remaining_days = int(str(self.next_watering).split(" ")[0])
+                    # Total predicted interval for this cycle
+                    predicted_total_days = days_since_watering + remaining_days
+
+                    if predicted_total_days > 0.5:
+                        ratio = days_since_watering / predicted_total_days
+                        # ratio > 1: watered later than predicted -> increase factor
+                        # ratio < 1: watered earlier than predicted -> decrease factor
+                        ratio = max(0.5, min(2.0, ratio))
+                        new_factor = self._water_factor * (1.0 + (ratio - 1.0) * 0.1)
+                        self._water_factor = max(0.1, min(10.0, new_factor))
+                        _LOGGER.debug(
+                            "Plant %s adaptive factor: ratio=%.2f, new factor=%.4f",
+                            self.name,
+                            ratio,
+                            self._water_factor,
+                        )
+                except (ValueError, IndexError):
+                    pass
+            except ValueError:
+                pass
+
+        self.last_watered = now.isoformat()
         self.snooze_until = None
         self.update()
         self.async_write_ha_state()
