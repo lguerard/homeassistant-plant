@@ -1029,15 +1029,16 @@ class PlantDevice(RestoreEntity):
         # Add factor to watering or existing response?
         # The existing 'response' object has ATTR_NEXT_WATERING etc.
         # We'll merge our expanded watering info into the response
+        try:
+            days_remaining = float(str(self.next_watering).split(" ")[0])
+        except (ValueError, TypeError, IndexError):
+            days_remaining = 0.0
+
         response["watering"] = {
             "last_watered": self.last_watered,
             "next_watering": self.next_watering,
-            "days_until": days_until(self.next_watering)
-            if self.next_watering
-            else None,
-            "needs_watering": (days_until(self.next_watering) <= 0.0)
-            if self.next_watering
-            else False,
+            "days_until": days_remaining,
+            "needs_watering": days_remaining <= 0.0,
             "explanation": self.watering_explanation,
             "water_factor": round(self._water_factor, 2),
             "smart_watering": self.smart_watering,
