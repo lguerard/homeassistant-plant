@@ -25,6 +25,7 @@ from .const import (
     ATTR_ENTITY,
     ATTR_LIMITS,
     ATTR_OPTIONS,
+    ATTR_PLANT,
     ATTR_SEARCH_FOR,
     ATTR_SELECT,
     ATTR_SENSORS,
@@ -43,6 +44,7 @@ from .const import (
     CONF_MIN_ILLUMINANCE,
     CONF_MIN_MOISTURE,
     CONF_MIN_TEMPERATURE,
+    CONF_SMART_WATERING,
     CONF_WATERING,
     DATA_SOURCE,
     DATA_SOURCE_PLANTBOOK,
@@ -530,7 +532,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
             return self.async_create_entry(title="", data=user_input)
 
-        self.plant = self.hass.data[DOMAIN][self.entry.entry_id]["plant"]
+        if (
+            DOMAIN not in self.hass.data
+            or self.entry.entry_id not in self.hass.data[DOMAIN]
+            or ATTR_PLANT not in self.hass.data[DOMAIN][self.entry.entry_id]
+        ):
+            return self.async_abort(reason="not_setup")
+
+        self.plant = self.hass.data[DOMAIN][self.entry.entry_id][ATTR_PLANT]
         plant_helper = PlantHelper(hass=self.hass)
         data_schema = {}
         data_schema[
