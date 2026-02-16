@@ -1402,13 +1402,13 @@ class PlantDevice(RestoreEntity):
                             f"Ajustement humidité : {original_base:.1f}j -> {base_days:.1f}j (Plage {current_range:.0f}%)"
                         )
             except (ValueError, TypeError, AttributeError) as e:
-                 # Log error but only once per update to avoid spam, or just skip
-                 pass
+                # Log error but only once per update to avoid spam, or just skip
+                pass
 
         if self._water_factor != 1.0:
             if abs(original_base - base_days) > 0.5:
                 # If both factors are active, clarify
-               explanation_lines.append(
+                explanation_lines.append(
                     f"Délai de base : {self.watering_days or 7}j (Apprentissage : x{self._water_factor:.2f})"
                 )
             else:
@@ -1417,11 +1417,13 @@ class PlantDevice(RestoreEntity):
                     f"Délai de base : {self.watering_days or 7}j (Apprentissage : x{self._water_factor:.2f})"
                 )
         elif abs(original_base - base_days) <= 0.5:
-             # Only show base if no significant smart adjustment happened to avoid duplication
-             explanation_lines.append(f"Délai de base : {base_days:.0f} jours")
+            # Only show base if no significant smart adjustment happened to avoid duplication
+            explanation_lines.append(f"Délai de base : {base_days:.0f} jours")
         else:
-             # If smart adjustment happened, it was already logged above, so we log the base reference
-             explanation_lines.append(f"Délai théorique (config) : {self.watering_days or 7} jours")
+            # If smart adjustment happened, it was already logged above, so we log the base reference
+            explanation_lines.append(
+                f"Délai théorique (config) : {self.watering_days or 7} jours"
+            )
 
         adj = 1.0
         # Use temperature if available (set above in the health check)
