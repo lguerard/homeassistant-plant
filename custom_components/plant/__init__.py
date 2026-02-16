@@ -1357,20 +1357,24 @@ class PlantDevice(RestoreEntity):
             try:
                 # Get fresh state for calculation
                 moisture_state = self._hass.states.get(self.sensor_moisture.entity_id)
-                if moisture_state and moisture_state.state not in (
-                    STATE_UNKNOWN,
-                    STATE_UNAVAILABLE,
-                ):
-                    try:
-                        min_m = float(self.min_moisture.state)
-                    except AttributeError:
-                        min_m = float(self.min_moisture)
+                
+                # Logic Fix: Even if the CURRENT moisture is unavailable, we should still
+                # be able to calculate the BASE frequency adjustment based on config (min/max).
+                # The BASE adjustment depends on the PLANT SPECIES traits (min/max), not the current wetness.
+                
+                # We proceed if min/max are available, regardless of current moisture reading.
+                try:
+                    min_m = float(self.min_moisture.state)
+                except AttributeError:
+                    min_m = float(self.min_moisture)
 
-                    try:
-                        max_m = float(self.max_moisture.state)
-                    except AttributeError:
-                        max_m = float(self.max_moisture)
-
+                try:
+                    max_m = float(self.max_moisture.state)
+                except AttributeError:
+                    max_m = float(self.max_moisture)
+                
+                # Check for valid thresholds
+                if min_m is not None and max_m is not None:
                     # Standard range logic:
                     # If plant needs high moisture (e.g. min 60%), it has a smaller usable range (max-min)
                     # So for the same daily loss, it needs to be watered more often.
@@ -1412,7 +1416,7 @@ class PlantDevice(RestoreEntity):
         if not self.smart_watering:
              explanation_lines.append("Smart Watering: DISABLED")
         elif not self.sensor_moisture:
-             explanation_lines.append("Smart Watering: NO SENSOR")
+             explanation_lines.append("Smart Watering: NO SENSOR config")
         
         # explanation_lines.append(f"Smart: {self.smart_watering}, Algo ran: {abs(original_base - base_days) > 0.001}")
 
