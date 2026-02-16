@@ -1346,6 +1346,42 @@ class PlantDevice(RestoreEntity):
         moisture_calculated = False
         explanation_lines = []
         base_days = (self.watering_days or 7) * self._water_factor
+
+        # Smart Watering: Adjust base frequency based on plant's moisture needs
+        # Plants with high min_moisture need water more frequently than the base config
+        if self.smart_watering and self.sensor_moisture:
+            try:
+                # Get fresh state for calculation
+                moisture_state = self._hass.states.get(self.sensor_moisture.entity_id)
+                if moisture_state and moisture_state.state not in (
+                    STATE_UNKNOWN,
+                    STATE_UNAVAILABLE,
+                ):
+                    min_m = float(self.min_moisture.state)
+                    max_m = float(self.max_moisture.state)
+
+                    # Standard range logic:
+                    # If plant needs high moisture (e.g. min 60%), it has a smaller usable range (max-min)
+                    # So for the same daily loss, it needs to be watered more often.
+                    # We adjust the base days to reflect this "effective" cycle length.
+
+                    standard_min = 15.0  # Typical plant minimum
+                    current_range = max_m - min_m
+                    standard_range = max_m - standard_min
+
+                    if current_range > 0 and standard_range > 0:
+                        ratio = current_range / standard_range
+                        if ratio != 1.0:
+                            # Apply ratio to base days
+                            original_base = base_days
+                            base_days = base_days * ratio
+                            explanation_lines.append(
+                                f"Ajustement humidité : {original_base:.1f}j -> {base_days:.1f}j (Plage {current_range:.0f}%)"
+                            )
+
+            except (ValueError, TypeError, AttributeError):
+                pass
+
         if self._water_factor != 1.0:
             explanation_lines.append(
                 f"Délai de base : {self.watering_days or 7}j (Apprentissage : x{self._water_factor:.2f})"
@@ -1420,7 +1456,14 @@ class PlantDevice(RestoreEntity):
                 max_moisture = float(self.max_moisture.state)
 
                 # Default loss rate: assumes self.watering_days to go from max to min
-                daily_loss = (max_moisture - min_moisture) / base_days
+                # If smart watering is enabled, we assume the base cycle applies to a standard range (max -> 15%)
+                # allowing the user's min_moisture setting to affect frequency
+                if self.smart_watering:
+                    base_loss_min = 15.0
+                    daily_loss = (max_moisture - base_loss_min) / base_days
+                else:
+                    daily_loss = (max_moisture - min_moisture) / base_days
+
                 if daily_loss <= 0:
                     daily_loss = 5
 
