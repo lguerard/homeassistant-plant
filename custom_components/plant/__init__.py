@@ -1377,30 +1377,30 @@ class PlantDevice(RestoreEntity):
                     current_range = max_m - min_m
                     standard_range = max_m - standard_min
 
-                        # Logic correction:
-                        # Base days (e.g. 7 days) usually represents the time to go from MAX to Min for a STANDARD plant.
-                        # If a plant has a strict MIN (e.g. 60%), the user likely still configured "7 days" as the "watering frequency".
-                        # BUT physically, if the soil dries at a constant rate, going from 80->60 takes much less time than 80->15.
+                    # Logic correction:
+                    # Base days (e.g. 7 days) usually represents the time to go from MAX to Min for a STANDARD plant.
+                    # If a plant has a strict MIN (e.g. 60%), the user likely still configured "7 days" as the "watering frequency".
+                    # BUT physically, if the soil dries at a constant rate, going from 80->60 takes much less time than 80->15.
 
-                        # We want to find the "implied rate of drying" based on a standard plant (15% min).
-                        # standard_daily_loss = (max - 15) / base_days_configured
+                    # We want to find the "implied rate of drying" based on a standard plant (15% min).
+                    # standard_daily_loss = (max - 15) / base_days_configured
 
-                        # Then for this specific plant:
-                        # expected_days = (max - min) / standard_daily_loss
-                        # expected_days = (max - min) / ((max - 15) / base_days)
-                        # expected_days = base_days * (max - min) / (max - 15)
+                    # Then for this specific plant:
+                    # expected_days = (max - min) / standard_daily_loss
+                    # expected_days = (max - min) / ((max - 15) / base_days)
+                    # expected_days = base_days * (max - min) / (max - 15)
 
-                        ratio = current_range / standard_range
+                    ratio = current_range / standard_range
 
-                        # Apply ratio to base days
-                        original_base = base_days
-                        base_days = base_days * ratio
+                    # Apply ratio to base days
+                    original_base = base_days
+                    base_days = base_days * ratio
 
-                        # Show explanation if ratio is applied, even if small difference, to confirm logic active
-                        if abs(original_base - base_days) > 0.1:
-                            explanation_lines.append(
-                                f"Ajustement humidité : {original_base:.1f}j -> {base_days:.1f}j (Plage {current_range:.0f}%)"
-                            )
+                    # Show explanation if ratio is applied, even if small difference, to confirm logic active
+                    if abs(original_base - base_days) > 0.1:
+                        explanation_lines.append(
+                            f"Ajustement humidité : {original_base:.1f}j -> {base_days:.1f}j (Plage {current_range:.0f}%)"
+                        )
             except (ValueError, TypeError, AttributeError) as e:
                  # Log error but only once per update to avoid spam, or just skip
                  pass
