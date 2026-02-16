@@ -1348,6 +1348,9 @@ class PlantDevice(RestoreEntity):
         base_days = (self.watering_days or 7) * self._water_factor
         original_base = base_days
 
+        # DEBUG: Check if smart watering is enabled
+        # explanation_lines.append(f"Smart config: {self.smart_watering}")
+
         # Smart Watering: Adjust base frequency based on plant's moisture needs
         # Plants with high min_moisture need water more frequently than the base config
         if self.smart_watering and self.sensor_moisture:
@@ -1402,8 +1405,16 @@ class PlantDevice(RestoreEntity):
                             f"Ajustement humidité : {original_base:.1f}j -> {base_days:.1f}j (Plage {current_range:.0f}%)"
                         )
             except (ValueError, TypeError, AttributeError) as e:
-                # Log error but only once per update to avoid spam, or just skip
+                explanation_lines.append(f"Err SMT: {e}")
                 pass
+        
+        # DEBUG: Temporary check to see why smart watering fails
+        if not self.smart_watering:
+             explanation_lines.append("Smart Watering: DISABLED")
+        elif not self.sensor_moisture:
+             explanation_lines.append("Smart Watering: NO SENSOR")
+        
+        # explanation_lines.append(f"Smart: {self.smart_watering}, Algo ran: {abs(original_base - base_days) > 0.001}")
 
         if self._water_factor != 1.0:
             if abs(original_base - base_days) > 0.5:
