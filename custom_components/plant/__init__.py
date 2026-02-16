@@ -1346,6 +1346,7 @@ class PlantDevice(RestoreEntity):
         moisture_calculated = False
         explanation_lines = []
         base_days = (self.watering_days or 7) * self._water_factor
+        original_base = base_days
 
         # Smart Watering: Adjust base frequency based on plant's moisture needs
         # Plants with high min_moisture need water more frequently than the base config
@@ -1357,8 +1358,15 @@ class PlantDevice(RestoreEntity):
                     STATE_UNKNOWN,
                     STATE_UNAVAILABLE,
                 ):
-                    min_m = float(self.min_moisture.state)
-                    max_m = float(self.max_moisture.state)
+                    try:
+                        min_m = float(self.min_moisture.state)
+                    except AttributeError:
+                         min_m = float(self.min_moisture)
+
+                    try:
+                        max_m = float(self.max_moisture.state)
+                    except AttributeError:
+                        max_m = float(self.max_moisture)
 
                     # Standard range logic:
                     # If plant needs high moisture (e.g. min 60%), it has a smaller usable range (max-min)
@@ -1369,25 +1377,51 @@ class PlantDevice(RestoreEntity):
                     current_range = max_m - min_m
                     standard_range = max_m - standard_min
 
-                    if current_range > 0 and standard_range > 0:
+                        # Logic correction:
+                        # Base days (e.g. 7 days) usually represents the time to go from MAX to Min for a STANDARD plant.
+                        # If a plant has a strict MIN (e.g. 60%), the user likely still configured "7 days" as the "watering frequency".
+                        # BUT physically, if the soil dries at a constant rate, going from 80->60 takes much less time than 80->15.
+
+                        # We want to find the "implied rate of drying" based on a standard plant (15% min).
+                        # standard_daily_loss = (max - 15) / base_days_configured
+
+                        # Then for this specific plant:
+                        # expected_days = (max - min) / standard_daily_loss
+                        # expected_days = (max - min) / ((max - 15) / base_days)
+                        # expected_days = base_days * (max - min) / (max - 15)
+
                         ratio = current_range / standard_range
-                        if ratio != 1.0:
-                            # Apply ratio to base days
-                            original_base = base_days
-                            base_days = base_days * ratio
+
+                        # Apply ratio to base days
+                        original_base = base_days
+                        base_days = base_days * ratio
+
+                        # Show explanation if ratio is applied, even if small difference, to confirm logic active
+                        if abs(original_base - base_days) > 0.1:
                             explanation_lines.append(
                                 f"Ajustement humidité : {original_base:.1f}j -> {base_days:.1f}j (Plage {current_range:.0f}%)"
                             )
-
-            except (ValueError, TypeError, AttributeError):
-                pass
+            except (ValueError, TypeError, AttributeError) as e:
+                 # Log error but only once per update to avoid spam, or just skip
+                 pass
 
         if self._water_factor != 1.0:
-            explanation_lines.append(
-                f"Délai de base : {self.watering_days or 7}j (Apprentissage : x{self._water_factor:.2f})"
-            )
+            if abs(original_base - base_days) > 0.5:
+                # If both factors are active, clarify
+               explanation_lines.append(
+                    f"Délai de base : {self.watering_days or 7}j (Apprentissage : x{self._water_factor:.2f})"
+                )
+            else:
+                # Standard explanation
+                explanation_lines.append(
+                    f"Délai de base : {self.watering_days or 7}j (Apprentissage : x{self._water_factor:.2f})"
+                )
+        elif abs(original_base - base_days) <= 0.5:
+             # Only show base if no significant smart adjustment happened to avoid duplication
+             explanation_lines.append(f"Délai de base : {base_days:.0f} jours")
         else:
-            explanation_lines.append(f"Délai de base : {base_days:.0f} jours")
+             # If smart adjustment happened, it was already logged above, so we log the base reference
+             explanation_lines.append(f"Délai théorique (config) : {self.watering_days or 7} jours")
 
         adj = 1.0
         # Use temperature if available (set above in the health check)
