@@ -1361,7 +1361,7 @@ class PlantDevice(RestoreEntity):
                     try:
                         min_m = float(self.min_moisture.state)
                     except AttributeError:
-                         min_m = float(self.min_moisture)
+                        min_m = float(self.min_moisture)
 
                     try:
                         max_m = float(self.max_moisture.state)
