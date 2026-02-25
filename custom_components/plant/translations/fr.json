@@ -92,6 +92,26 @@
     }
   },
   "services": {
+    "watered": {
+      "name": "Marquée comme arrosée",
+      "description": "Marque la plante comme arrosée ce qui met à jour l'horodatage du dernier arrosage.",
+      "fields": {
+        "entity_id": {
+          "name": "Entité",
+          "description": "La plante à marquer comme arrosée"
+        }
+      }
+    },
+    "skip_watering": {
+      "name": "Passer l'arrosage",
+      "description": "Indique que la plante n'a pas besoin d'arrosage immédiat ce qui décalera le prochain arrosage.",
+      "fields": {
+        "entity_id": {
+          "name": "Entité",
+          "description": "La plante"
+        }
+      }
+    },
     "remove_plant": {
       "name": "Supprimer la plante",
       "description": "Supprime Complètement une plante et toutes ses données associées de Home Assistant.",

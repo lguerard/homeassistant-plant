@@ -105,6 +105,26 @@
           "description": "Entity id of the new sensor. Leave blank to remove sensor."
         }
       }
+    },
+    "watered": {
+      "name": "Watered",
+      "description": "Mark the plant as watered. This updates the last watered timestamp.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity",
+          "description": "The plant entity to mark as watered"
+        }
+      }
+    },
+    "skip_watering": {
+      "name": "Skip watering",
+      "description": "Indicate that the plant does not need watering right now. This will delay the next watering time.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity",
+          "description": "The plant entity"
+        }
+      }
     }
   }
 }

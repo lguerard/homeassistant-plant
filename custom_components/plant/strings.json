@@ -124,6 +124,16 @@
         }
       }
     },
+    "skip_watering": {
+      "name": "Skip watering",
+      "description": "Indicate that the plant does not need watering right now. This will delay the next watering time.",
+      "fields": {
+        "entity_id": {
+          "name": "Entity",
+          "description": "The plant entity"
+        }
+      }
+    },
     "remove_plant": {
       "name": "Remove plant",
       "description": "Completely remove a plant and all its associated data from Home Assistant.",
