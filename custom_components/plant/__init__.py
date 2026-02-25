@@ -322,6 +322,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
             DOMAIN, SERVICE_SNOOZE, snooze, schema=cv.make_entity_service_schema({})
         )
 
+        async def skip_watering(call: ServiceCall) -> None:
+            """Service call to skip a watering."""
+            entity_ids = call.data.get("entity_id")
+            if not entity_ids:
+                return
+            if isinstance(entity_ids, str):
+                entity_ids = [entity_ids]
+
+            for entry_id in hass.data[DOMAIN]:
+                if not isinstance(hass.data[DOMAIN][entry_id], dict):
+                    continue
+                plant_obj = hass.data[DOMAIN][entry_id].get(ATTR_PLANT)
+                if plant_obj and plant_obj.entity_id in entity_ids:
+                    _LOGGER.info("Marking %s as skipped", plant_obj.entity_id)
+                    plant_obj.async_skip_watering()
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_SKIP_WATERING,
+            skip_watering,
+            schema=cv.make_entity_service_schema({}),
+        )
+
         async def update_plants(call: ServiceCall) -> None:
             """Service call to force update all plants."""
             entity_ids = call.data.get("entity_id")
@@ -1622,13 +1645,15 @@ class PlantDevice(RestoreEntity):
                         # ratio > 1: watered later than predicted -> increase factor
                         # ratio < 1: watered earlier than predicted -> decrease factor
                         ratio = max(0.5, min(2.0, ratio))
-                        new_factor = self._water_factor * (1.0 + (ratio - 1.0) * 0.1)
+                        # Increase weight of adaptation from 0.1 to 0.3 to make it more responsive
+                        new_factor = self._water_factor * (1.0 + (ratio - 1.0) * 0.3)
                         self._water_factor = max(0.1, min(10.0, new_factor))
-                        _LOGGER.debug(
-                            "Plant %s adaptive factor: ratio=%.2f, new factor=%.4f",
+                        _LOGGER.info(
+                            "Plant %s adaptive learning (WATERED): ratio=%.2f, new factor=%.4f (base: %sj)",
                             self.name,
                             ratio,
                             self._water_factor,
+                            self.watering_days,
                         )
                 except (ValueError, IndexError):
                     pass
@@ -1644,6 +1669,25 @@ class PlantDevice(RestoreEntity):
     def async_snooze(self) -> None:
         """Snooze the watering notification."""
         self.snooze_until = (datetime.now() + timedelta(hours=1)).isoformat()
+        self.update()
+        self.async_write_ha_state()
+
+    @callback
+    def async_skip_watering(self) -> None:
+        """Skip the current watering and increase the watering interval factor."""
+        # If we skip, it means the plant is NOT thirsty when we expected it to be.
+        # So the interval should be LONGER.
+        # We increase the factor by a fixed amount (e.g., +20% of current interval)
+        new_factor = self._water_factor * 1.2
+        self._water_factor = max(0.1, min(10.0, new_factor))
+        _LOGGER.info(
+            "Plant %s adaptive learning (SKIPPED): new factor=%.4f (base: %sj)",
+            self.name,
+            self._water_factor,
+            self.watering_days,
+        )
+        # Snooze for 24h as we "skipped" it
+        self.snooze_until = (datetime.now() + timedelta(days=1)).isoformat()
         self.update()
         self.async_write_ha_state()
 
