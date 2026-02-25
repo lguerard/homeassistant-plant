@@ -1623,7 +1623,16 @@ class PlantDevice(RestoreEntity):
 
     @callback
     def async_watered(self) -> None:
-        """Mark the plant as watered."""
+        """
+        Mark the plant as watered.
+
+        Updates the last watered timestamp and runs the adaptive learning 
+        algorithm to adjust the watering multiplier according to user habits.
+
+        Returns
+        -------
+        None
+        """
         now = datetime.now()
 
         # Adaptive learning: adjust _water_factor based on when the user actually watered
@@ -1674,7 +1683,16 @@ class PlantDevice(RestoreEntity):
 
     @callback
     def async_skip_watering(self) -> None:
-        """Skip the current watering and increase the watering interval factor."""
+        """
+        Skip the current watering cycle.
+
+        Increases the watering multiplier by 20% and snoozes notifications
+        for 24 hours.
+
+        Returns
+        -------
+        None
+        """
         # If we skip, it means the plant is NOT thirsty when we expected it to be.
         # So the interval should be LONGER.
         # We increase the factor by a fixed amount (e.g., +20% of current interval)
