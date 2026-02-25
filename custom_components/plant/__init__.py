@@ -62,6 +62,7 @@ from .const import (
     ATTR_ROOM_TEMPERATURE,
     ATTR_SENSOR,
     ATTR_SENSORS,
+    ATTR_SMART_WATERING,
     ATTR_SNOOZE_UNTIL,
     ATTR_SPECIES,
     ATTR_TEMPERATURE,
@@ -69,7 +70,6 @@ from .const import (
     ATTR_WATER_FACTOR,
     ATTR_WATERING,
     ATTR_WEATHER_ENTITY,
-    ATTR_SMART_WATERING,
     CONF_SMART_WATERING,
     CONF_WATERING,
     DATA_SOURCE,
@@ -791,13 +791,17 @@ class PlantDevice(RestoreEntity):
             advice.append("Il fait un peu sombre ici, j'aimerais plus de lumière. ☀️")
 
         if self.temperature_status == STATE_LOW:
-            advice.append("Il fait froid ! Est-ce qu'on peut monter un peu le chauffage ? 🥶")
+            advice.append(
+                "Il fait froid ! Est-ce qu'on peut monter un peu le chauffage ? 🥶"
+            )
         elif self.temperature_status == STATE_HIGH:
             advice.append("Ouf, il fait trop chaud ici ! 🥵")
 
         if not advice:
             if "fern" in category or "tropical" in category:
-                advice.append("Tout va bien ! N'oubliez pas de brumiser mes feuilles. ✨")
+                advice.append(
+                    "Tout va bien ! N'oubliez pas de brumiser mes feuilles. ✨"
+                )
             else:
                 advice.append("Tout va bien, merci de prendre soin de moi ! 💚")
 
@@ -1690,7 +1694,7 @@ class PlantDevice(RestoreEntity):
         """
         Mark the plant as watered.
 
-        Updates the last watered timestamp and runs the adaptive learning 
+        Updates the last watered timestamp and runs the adaptive learning
         algorithm to adjust the watering multiplier according to user habits.
 
         Returns
@@ -1779,6 +1783,12 @@ class PlantDevice(RestoreEntity):
             return
 
         now = datetime.now()
+
+        # Morning notification logic (around 9:00 AM)
+        # We only notify between 9:00 and 10:00 to avoid multiple pings if sensors fluctuate
+        if now.hour < 9 or now.hour >= 10:
+            return
+
         if self.snooze_until:
             try:
                 snooze_dt = datetime.fromisoformat(self.snooze_until)
@@ -1790,7 +1800,8 @@ class PlantDevice(RestoreEntity):
         if self.last_notified:
             try:
                 last_dt = datetime.fromisoformat(self.last_notified)
-                if now < last_dt + timedelta(hours=4):
+                # If we already notified today (after 8:00 AM), don't notify again
+                if last_dt.date() == now.date() and last_dt.hour >= 8:
                     return
             except ValueError:
                 pass
