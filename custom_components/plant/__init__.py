@@ -56,6 +56,8 @@ from .const import (
     ATTR_NEXT_WATERING,
     ATTR_OUTSIDE,
     ATTR_PLANT,
+    ATTR_PLANT_ADVICE,
+    ATTR_PLANT_MOOD,
     ATTR_ROOM_HUMIDITY,
     ATTR_ROOM_TEMPERATURE,
     ATTR_SENSOR,
@@ -64,8 +66,10 @@ from .const import (
     ATTR_SPECIES,
     ATTR_TEMPERATURE,
     ATTR_THRESHOLDS,
+    ATTR_WATER_FACTOR,
     ATTR_WATERING,
     ATTR_WEATHER_ENTITY,
+    ATTR_SMART_WATERING,
     CONF_SMART_WATERING,
     CONF_WATERING,
     DATA_SOURCE,
@@ -742,6 +746,63 @@ class PlantDevice(RestoreEntity):
         # Score drops linearly above max (0 at v_max + 10)
         return max(0.0, 100.0 - (val - v_max) * 10.0)
 
+    def _calculate_mood(self) -> str:
+        """Calculate an emoji representing the plant's mood."""
+        # Check current state (e.g., problematic sensors)
+        problem_count = 0
+        statuses = [
+            self.moisture_status,
+            self.temperature_status,
+            self.conductivity_status,
+            self.illuminance_status,
+            self.humidity_status,
+            self.dli_status,
+        ]
+        problem_count = sum(1 for s in statuses if s in (STATE_LOW, STATE_HIGH))
+
+        comfort_score, _ = self.calculate_comfort_and_care()
+
+        if self.state == STATE_PROBLEM:
+            return "😩"  # Suffering
+        if problem_count > 1:
+            return "😟"  # Concerned
+        if problem_count == 1:
+            return "🤨"  # Uncomfortable
+        if comfort_score > 95:
+            return "😍"  # Very happy
+        if comfort_score > 85:
+            return "🙂"  # Happy
+        return "😐"  # Neutral
+
+    def _calculate_advice(self) -> str:
+        """Get advice based on the plant's current state."""
+        category = (self.category or "").lower()
+        advice = []
+
+        if self.moisture_status == STATE_LOW:
+            advice.append("J'ai très soif, un peu d'eau s'il vous plaît ! 💧")
+        elif self.moisture_status == STATE_HIGH:
+            advice.append("Il y a un peu trop d'eau, attention aux racines. 🌊")
+
+        if self.conductivity_status == STATE_LOW:
+            advice.append("Un peu d'engrais me ferait du bien bientôt. 🧪")
+
+        if self.illuminance_status == STATE_LOW or self.dli_status == STATE_LOW:
+            advice.append("Il fait un peu sombre ici, j'aimerais plus de lumière. ☀️")
+
+        if self.temperature_status == STATE_LOW:
+            advice.append("Il fait froid ! Est-ce qu'on peut monter un peu le chauffage ? 🥶")
+        elif self.temperature_status == STATE_HIGH:
+            advice.append("Ouf, il fait trop chaud ici ! 🥵")
+
+        if not advice:
+            if "fern" in category or "tropical" in category:
+                advice.append("Tout va bien ! N'oubliez pas de brumiser mes feuilles. ✨")
+            else:
+                advice.append("Tout va bien, merci de prendre soin de moi ! 💚")
+
+        return " ".join(advice)
+
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added to hass."""
         await super().async_added_to_hass()
@@ -859,7 +920,10 @@ class PlantDevice(RestoreEntity):
             ATTR_SNOOZE_UNTIL: self.snooze_until,
             "last_notified": self.last_notified,
             "watering_explanation": self.watering_explanation,
-            "water_factor": self._water_factor,
+            ATTR_WATER_FACTOR: round(self._water_factor, 2),
+            ATTR_SMART_WATERING: self.smart_watering,
+            ATTR_PLANT_MOOD: self._calculate_mood(),
+            ATTR_PLANT_ADVICE: self._calculate_advice(),
             "last_moisture": self._last_moisture,
         }
 

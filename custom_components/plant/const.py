@@ -39,6 +39,10 @@ ATTR_PLANT = "plant"
 ATTR_SPECIES = "species"
 ATTR_IMAGE = "image"
 ATTR_SEARCH_FOR = "search_for"
+ATTR_SMART_WATERING = "smart_watering"
+ATTR_WATER_FACTOR = "water_factor"
+ATTR_PLANT_MOOD = "plant_mood"
+ATTR_PLANT_ADVICE = "plant_advice"
 
 # Readings are used by humans
 READING_BATTERY = "battery"
