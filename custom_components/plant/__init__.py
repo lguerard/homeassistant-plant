@@ -1784,24 +1784,29 @@ class PlantDevice(RestoreEntity):
 
         now = datetime.now()
 
-        # Morning notification logic (around 9:00 AM)
-        # We only notify between 9:00 and 10:00 to avoid multiple pings if sensors fluctuate
-        if now.hour < 9 or now.hour >= 10:
-            return
-
+        # Snooze handling takes priority
+        # If user snoozed, we allow notifications outside of the 9:00 AM window
+        is_snoozed = False
         if self.snooze_until:
             try:
                 snooze_dt = datetime.fromisoformat(self.snooze_until)
                 if now < snooze_dt:
                     return
+                # If we are past the snooze time, we should notify regardless of the morning window
+                is_snoozed = True
             except ValueError:
                 pass
+
+        # Morning notification logic (around 9:00 AM)
+        # Only check the window if we are NOT returning from a snooze
+        if not is_snoozed and (now.hour < 9 or now.hour >= 10):
+            return
 
         if self.last_notified:
             try:
                 last_dt = datetime.fromisoformat(self.last_notified)
-                # If we already notified today (after 8:00 AM), don't notify again
-                if last_dt.date() == now.date() and last_dt.hour >= 8:
+                # If we already notified today (after 8:00 AM), don't notify again UNLESS we just woke up from a snooze
+                if not is_snoozed and last_dt.date() == now.date() and last_dt.hour >= 8:
                     return
             except ValueError:
                 pass
