@@ -1806,7 +1806,11 @@ class PlantDevice(RestoreEntity):
             try:
                 last_dt = datetime.fromisoformat(self.last_notified)
                 # If we already notified today (after 8:00 AM), don't notify again UNLESS we just woke up from a snooze
-                if not is_snoozed and last_dt.date() == now.date() and last_dt.hour >= 8:
+                if (
+                    not is_snoozed
+                    and last_dt.date() == now.date()
+                    and last_dt.hour >= 8
+                ):
                     return
             except ValueError:
                 pass
@@ -1848,4 +1852,5 @@ class PlantDevice(RestoreEntity):
         }
         await self._hass.services.async_call("notify", notify_service, service_data)
         self.last_notified = datetime.now().isoformat()
-        self.async_write_ha_state()  # Ensure last_notified is saved to state
+        self.snooze_until = None
+        self.async_write_ha_state()  # Ensure state is saved
