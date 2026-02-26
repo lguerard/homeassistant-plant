@@ -34,3 +34,47 @@ update_plants:
         entity:
           domain: plant
           multiple: true
+
+watered:
+  description: Mark the plant as watered. This updates the last watered timestamp.
+  fields:
+    entity_id:
+      name: Entity
+      description: The plant entity to mark as watered
+      required: true
+      selector:
+        entity:
+          domain: plant
+
+snooze:
+  description: Snooze the watering notification for 1 hour.
+  fields:
+    entity_id:
+      name: Entity
+      description: The plant entity to snooze
+      required: true
+      selector:
+        entity:
+          domain: plant
+
+skip_watering:
+  description: Indicate that the plant does not need watering right now. This will delay the next watering time.
+  fields:
+    entity_id:
+      name: Entity
+      description: The plant entity
+      required: true
+      selector:
+        entity:
+          domain: plant
+
+remove_plant:
+  description: Completely remove a plant and all its associated data from Home Assistant.
+  fields:
+    entity_id:
+      name: Entity
+      description: The plant entity to remove
+      required: true
+      selector:
+        entity:
+          domain: plant
