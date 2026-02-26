@@ -284,7 +284,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
                 )
 
     # Register services
-    if not hass.services.has_service(DOMAIN, SERVICE_WATERED):
+    if True:
 
         async def watered(call: ServiceCall) -> None:
             """Service call to mark a plant as watered."""
